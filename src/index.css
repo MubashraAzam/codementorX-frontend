@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background text-accent font-body antialiased;
+    overflow-x: hidden;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading font-bold tracking-tight text-accent;
+  }
+}
+
+@layer components {
+  /* Gamified Button Base */
+  .btn-game {
+    @apply font-heading font-bold text-base px-6 py-3 rounded-xl border-none cursor-pointer uppercase tracking-wide inline-flex items-center justify-center gap-2 transition-all duration-150;
+  }
+  
+  .btn-game:active:not(:disabled) {
+    @apply translate-y-1 !shadow-none;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-accent shadow-[0_4px_0_0_#E5B232];
+  }
+  .btn-primary:hover:not(:disabled) {
+    @apply bg-[#E5B02E];
+  }
+  
+  .btn-success {
+    @apply bg-success text-white shadow-[0_4px_0_0_#3d8c40];
+  }
+  .btn-success:hover:not(:disabled) {
+    @apply bg-[#43a047];
+  }
+  
+  .btn-secondary {
+    @apply bg-white text-accent border-2 border-gray-200 shadow-[0_4px_0_0_#e5e7eb];
+  }
+  .btn-secondary:hover:not(:disabled) {
+    @apply bg-gray-50 border-gray-300 shadow-[0_4px_0_0_#d1d5db];
+  }
+
+  /* Glassmorphism Card */
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-md border border-white/40 shadow-sm rounded-2xl;
+  }
+}
+
+/* Custom Gamified Scrollbar */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-background border-l-2 border-gray-200;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 border-[3px] border-solid border-background rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400;
+}
