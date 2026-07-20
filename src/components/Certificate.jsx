@@ -64,11 +64,11 @@ const diffColor = {
   Hard:   "bg-red-100 text-red-700 border-red-200",
 };
 
-async function reviewCodeWithAI(fileContent, fileName, language, projectTitle) {
+async function reviewCodeWithAI(fileContent, fileName, language, projectTitle, projectDesc) {
   try {
     const data = await apiRequest("/api/ai/review-project", {
       method: "POST",
-      body: { code: fileContent, fileName, language, projectTitle },
+      body: { code: fileContent, fileName, language, projectTitle, projectDesc },
     });
     return data;
   } catch (err) {
@@ -119,7 +119,7 @@ export default function Certificate({ username = "Student", language = "python",
       }));
       setReviewingId(projId);
       const proj = PROJECTS.find(p => p.id === projId);
-      const result = await reviewCodeWithAI(content, file.name, language, proj.title);
+      const result = await reviewCodeWithAI(content, file.name, language, proj.title, proj.desc);
       setProjectState(prev => ({
         ...prev,
         [projId]: { status: result.stars >= 2 ? "solved" : "needs_retry", fileName: file.name, stars: result.stars, feedback: result.feedback },
