@@ -261,17 +261,17 @@ export default function Certificate({ username = "Student", language = "python",
   );
 
   const TopBar = ({ title, showBack = true, actionLabel, actionIcon, isSuccess }) => (
-    <div className="h-20 bg-white/80 backdrop-blur-md border-b-2 border-gray-200 flex items-center justify-between px-6 shrink-0 z-20">
+    <div className="h-20 bg-white/70 backdrop-blur-xl border-b border-[#E8EDF5] flex items-center justify-between px-6 shrink-0 z-20">
       <div className="flex items-center gap-4">
         {showBack && (
-          <button onClick={() => view === 'interview' ? setView('projects') : onBack()} className="p-2 rounded-xl border-2 border-gray-200 hover:bg-gray-50 text-gray-500 transition-colors">
+          <button onClick={() => view === 'interview' ? setView('projects') : onBack()} className="p-2 rounded-xl border border-[#E8EDF5] hover:bg-gray-50 text-gray-500 transition-colors">
             <ArrowLeft size={20} />
           </button>
         )}
         <h1 className="text-lg font-heading font-black text-accent tracking-tight">{title}</h1>
       </div>
       {actionLabel && (
-        <div className={`px-4 py-2 rounded-xl font-bold text-sm border-2 flex items-center gap-2 ${isSuccess ? 'bg-green-100 text-green-700 border-green-200' : 'bg-orange-100 text-orange-700 border-orange-200'}`}>
+        <div className={`px-4 py-2 rounded-xl font-bold text-sm border flex items-center gap-2 ${isSuccess ? 'bg-[#E7F6EE] text-[#2E9D62] border-[#BDE7CE]' : 'bg-[#F0EBFC] text-[#8B6FE8] border-[#E0D5F7]'}`}>
           {actionIcon} {actionLabel}
         </div>
       )}
@@ -295,18 +295,18 @@ export default function Certificate({ username = "Student", language = "python",
             <h2 className="font-heading font-black text-xl text-accent mb-2">Solve 5 projects to unlock the AI Interview</h2>
             <div className="w-full max-w-lg mt-6">
               <div className="h-4 bg-gray-100 rounded-full border-2 border-gray-200 overflow-hidden mb-4 relative">
-                <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min((solvedCount / 5) * 100, 100)}%` }} className="h-full bg-primary absolute left-0 top-0" />
+                <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min((solvedCount / 5) * 100, 100)}%` }} className="h-full absolute left-0 top-0 rounded-full" style={{ background: "linear-gradient(90deg,#6E8BF5,#9B7DF0)" }} />
               </div>
               <div className="flex justify-between px-2">
                 {[0, 1, 2, 3, 4].map(i => (
-                  <div key={i} className={`w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-sm \${solvedCount > i ? 'bg-success border-success text-white' : 'bg-white border-gray-200 text-gray-400'}`}>
+                  <div key={i} className={`w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-sm ${solvedCount > i ? 'bg-success border-success text-white' : 'bg-white border-gray-200 text-gray-400'}`}>
                     {solvedCount > i ? <CheckCircle size={14} /> : i + 1}
                   </div>
                 ))}
               </div>
             </div>
             {solvedCount >= 5 && (
-              <motion.button initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} onClick={startInterview} className="btn-game btn-primary mt-8 px-8 py-4 text-lg">
+              <motion.button initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} onClick={startInterview} className="btn-game btn-cute mt-8 px-8 py-4 text-lg">
                 <PlayCircle size={20} className="mr-2"/> Conduct AI Interview Now
               </motion.button>
             )}
@@ -321,16 +321,16 @@ export default function Certificate({ username = "Student", language = "python",
               const needsRetry = st.status === "needs_retry";
 
               return (
-                <div key={proj.id} className={`bg-white rounded-3xl p-6 border-4 shadow-gamified flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 \${isSolved ? 'border-success' : needsRetry ? 'border-danger' : 'border-gray-200'}`}>
+                <div key={proj.id} className={`bg-white rounded-3xl p-6 border-4 shadow-gamified flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 ${isSolved ? 'border-success' : needsRetry ? 'border-danger' : 'border-gray-200'}`}>
                   <div>
                     <div className="flex justify-between items-start mb-4">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl text-white \${language === "python" ? "bg-blue-500" : "bg-indigo-600"}`}>
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl text-white ${language === "python" ? "bg-blue-500" : "bg-indigo-600"}`}>
                         {proj.id + 1}
                       </div>
                       {isSolved && <div className="bg-success text-white text-xs font-black px-3 py-1 rounded-full flex items-center gap-1"><CheckCircle size={12}/> SOLVED</div>}
                     </div>
                     <h3 className="font-heading font-black text-lg text-accent mb-2">{proj.title}</h3>
-                    <div className={`inline-block border-2 px-3 py-1 rounded-lg text-xs font-bold mb-4 \${diffColor[proj.difficulty]}`}>
+                    <div className={`inline-block border-2 px-3 py-1 rounded-lg text-xs font-bold mb-4 ${diffColor[proj.difficulty]}`}>
                       {proj.difficulty}
                     </div>
                     <p className="text-gray-500 font-medium text-sm leading-relaxed mb-6">
@@ -345,7 +345,7 @@ export default function Certificate({ username = "Student", language = "python",
                     )}
 
                     {st.feedback && (
-                      <div className={`p-3 rounded-xl border-2 text-sm font-medium mb-6 \${isSolved ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                      <div className={`p-3 rounded-xl border-2 text-sm font-medium mb-6 ${isSolved ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
                         {isSolved ? "✅ " : "⚠️ "}{st.feedback}
                       </div>
                     )}
@@ -356,7 +356,7 @@ export default function Certificate({ username = "Student", language = "python",
                     <button 
                       disabled={isReviewing} 
                       onClick={() => fileInputRefs.current[proj.id]?.click()} 
-                      className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border-b-4 \${isReviewing ? 'bg-gray-100 text-gray-400 border-gray-200' : isSolved ? 'bg-green-50 text-success border-green-200 hover:bg-green-100' : needsRetry ? 'bg-red-50 text-danger border-red-200 hover:bg-red-100' : 'bg-primary text-white border-[#e08e00] hover:bg-[#e08e00]'}`}
+                      className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border-b-4 ${isReviewing ? 'bg-gray-100 text-gray-400 border-gray-200' : isSolved ? 'bg-green-50 text-success border-green-200 hover:bg-green-100' : needsRetry ? 'bg-red-50 text-danger border-red-200 hover:bg-red-100' : 'bg-[#8B6FE8] text-white border-[#7B5FE0] hover:bg-[#7B5FE0]'}`}
                     >
                       {isReviewing ? <RefreshCw size={16} className="animate-spin"/> : isSolved ? <CheckCircle size={16}/> : needsRetry ? <XCircle size={16}/> : <Upload size={16}/>}
                       {isReviewing ? "Reviewing..." : isSolved ? "Re-upload Solution" : needsRetry ? "Try Again" : "Upload Solution"}
@@ -374,8 +374,8 @@ export default function Certificate({ username = "Student", language = "python",
   if (view === "interview") return (
     <PageWrapper>
       <TopBar title={`🎤 AI Voice Interview — ${langLabel}`} />
-      <div className="flex-1 flex items-center justify-center p-6 bg-gray-50">
-        <div className="w-full max-w-2xl bg-white rounded-[2rem] border-4 border-gray-100 shadow-gamified p-10 text-center">
+      <div className="flex-1 flex items-center justify-center p-6 bg-background">
+        <div className="w-full max-w-2xl bg-white rounded-[2rem] border border-[#E8EDF5] shadow-gamified p-10 text-center">
           
           {!interviewResult ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -390,21 +390,21 @@ export default function Certificate({ username = "Student", language = "python",
               </p>
               
               {callState !== "connected" && (
-                <div className="flex justify-center"><RefreshCw className="animate-spin text-primary" size={32} /></div>
+                <div className="flex justify-center"><RefreshCw className="animate-spin text-[#8B6FE8]" size={32} /></div>
               )}
 
               {callState === "connected" && (
                 <div className="flex justify-center relative w-24 h-24 mx-auto">
-                  <motion.div animate={{ scale: [1, 2], opacity: [0.8, 0] }} transition={{ repeat: Infinity, duration: 1.5 }} className="absolute inset-0 rounded-full bg-primary/20" />
-                  <motion.div animate={{ scale: [1, 1.5], opacity: [0.8, 0] }} transition={{ repeat: Infinity, duration: 1.5, delay: 0.4 }} className="absolute inset-0 rounded-full bg-primary/30" />
-                  <div className="absolute inset-0 rounded-full bg-primary m-6 shadow-gamified" />
+                  <motion.div animate={{ scale: [1, 2], opacity: [0.8, 0] }} transition={{ repeat: Infinity, duration: 1.5 }} className="absolute inset-0 rounded-full bg-[#8B6FE8]/20" />
+                  <motion.div animate={{ scale: [1, 1.5], opacity: [0.8, 0] }} transition={{ repeat: Infinity, duration: 1.5, delay: 0.4 }} className="absolute inset-0 rounded-full bg-[#8B6FE8]/30" />
+                  <div className="absolute inset-0 rounded-full bg-[#8B6FE8] m-6 shadow-gamified" />
                 </div>
               )}
             </motion.div>
           ) : (
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
               <div className="text-6xl mb-6">{interviewResult.percentage >= 85 ? "🎉" : "💪"}</div>
-              <h2 className={`font-heading font-black text-5xl mb-4 \${interviewResult.percentage >= 85 ? "text-success" : "text-primary"}`}>
+              <h2 className={`font-heading font-black text-5xl mb-4 ${interviewResult.percentage >= 85 ? "text-success" : "text-[#8B6FE8]"}`}>
                 {interviewResult.percentage}% Score
               </h2>
               <p className="text-gray-600 font-medium leading-relaxed max-w-lg mx-auto mb-10 bg-gray-50 p-6 rounded-2xl border-2 border-gray-100">
@@ -419,7 +419,7 @@ export default function Certificate({ username = "Student", language = "python",
                   } catch (err) {
                     alert(`Could not issue certificate: ${err.message}`);
                   }
-                }} className="btn-game btn-primary w-full max-w-xs py-4 text-lg mx-auto shadow-gamified">
+                }} className="btn-game btn-cute w-full max-w-xs py-4 text-lg mx-auto shadow-gamified">
                   <Award className="mr-2"/> Claim Certificate
                 </button>
               ) : (
@@ -438,21 +438,21 @@ export default function Certificate({ username = "Student", language = "python",
   if (view === "certificate") return (
     <PageWrapper>
       <TopBar title="Your Certificate" showBack={true} />
-      <div className="flex-1 flex items-center justify-center p-6 bg-gray-50 py-12 overflow-y-auto">
+      <div className="flex-1 flex items-center justify-center p-6 bg-background py-12 overflow-y-auto">
         <div className="w-full max-w-3xl">
           <motion.div animate={{ y: [-5, 5, -5] }} transition={{ duration: 2, repeat: Infinity }} className="text-center text-4xl mb-8 tracking-[1rem]">
             🎉🏆🎓✨🚀
           </motion.div>
 
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[2rem] border-8 border-primary p-12 text-center shadow-gamified relative overflow-hidden">
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[2rem] border-8 border-[#8B6FE8] p-12 text-center shadow-gamified relative overflow-hidden">
             <ConfettiBurst />
-            <div className="absolute -top-12 -left-12 w-32 h-32 bg-yellow-100 rounded-full" />
+            <div className="absolute -top-12 -left-12 w-32 h-32 bg-[#FCE9F2] rounded-full" />
             <div className="absolute -bottom-12 -right-12 w-40 h-40 bg-blue-50 rounded-full" />
             
             <div className="relative z-10">
-              <Award size={64} className="text-primary mx-auto mb-6" />
+              <Award size={64} className="text-[#8B6FE8] mx-auto mb-6" />
               <div className="text-sm font-black tracking-[0.2em] text-gray-400 uppercase mb-6">Certificate of Completion</div>
-              <div className="w-16 h-1 bg-primary mx-auto rounded-full mb-8" />
+              <div className="w-16 h-1 bg-[#8B6FE8] mx-auto rounded-full mb-8" />
               
               <div className="text-gray-500 font-medium mb-2">This certifies that</div>
               <div className="font-heading font-black text-5xl text-accent mb-6">{username}</div>
@@ -464,7 +464,7 @@ export default function Certificate({ username = "Student", language = "python",
               </div>
               
               <p className="text-gray-500 font-medium mb-12 max-w-lg mx-auto leading-relaxed">
-                including <strong className="text-accent">20 progressive levels</strong>, <strong className="text-accent">{solvedCount} practice projects</strong>, and a technical interview scoring <strong className="text-primary">{interviewResult?.percentage}%</strong> on the <strong className="text-accent">CodeMentorX</strong> AI-powered learning platform.
+                including <strong className="text-accent">20 progressive levels</strong>, <strong className="text-accent">{solvedCount} practice projects</strong>, and a technical interview scoring <strong className="text-[#8B6FE8]">{interviewResult?.percentage}%</strong> on the <strong className="text-accent">CodeMentorX</strong> AI-powered learning platform.
               </p>
 
               <div className="flex justify-between items-end border-t-2 border-gray-100 pt-8 text-left">
@@ -484,7 +484,7 @@ export default function Certificate({ username = "Student", language = "python",
           </motion.div>
 
           <div className="flex gap-4 mt-8 justify-center">
-            <button onClick={() => window.print()} className="btn-game btn-primary px-8 py-3">
+            <button onClick={() => window.print()} className="btn-game btn-cute px-8 py-3">
               <Printer size={18} className="mr-2"/> Print / Save PDF
             </button>
             <button onClick={onBack} className="btn-game btn-secondary px-8 py-3">

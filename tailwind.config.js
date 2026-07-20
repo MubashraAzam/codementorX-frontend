@@ -7,23 +7,27 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: "#F6C445",   // Warm Yellow
-        primaryHover: "#E5B02E", // Darker Warm Yellow
-        accent: "#2F3542",    // Charcoal Gray
-        background: "#F8F9FC", // Very Light Gray
-        success: "#4CAF50",
-        warning: "#FFC107",
-        danger: "#FF5252",
-        info: "#3B82F6",
+        primary: "#F49B00",      // Brand Orange (landing --orange)
+        primaryHover: "#E08E00", // Hover Orange
+        primaryDeep: "#CC8100",  // Orange for pressed/offset shadows (--orange-deep)
+        accent: "#14325D",       // Deep Navy — primary text/headings (--navy-1)
+        accentSoft: "#25367C",   // Secondary Navy (--navy-2)
+        background: "#FFFDFA",   // Warm Cream (--cream)
+        success: "#2E9D62",      // Green (--success)
+        warning: "#F5B301",      // Gold (stars / streaks)
+        danger: "#E0473A",       // Red (--red)
+        info: "#3B82F6",         // Blue accent
       },
       fontFamily: {
-        heading: ["'Nunito'", "sans-serif"],
-        body: ["'Quicksand'", "sans-serif"],
+        heading: ["'Sora'", "'Inter'", "sans-serif"],
+        body: ["'Inter'", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
       },
       boxShadow: {
-        'gamified': '0 8px 0 0 rgba(0,0,0,0.1)',
-        'gamified-hover': '0 4px 0 0 rgba(0,0,0,0.1)',
-        'gamified-active': '0 0 0 0 rgba(0,0,0,0.1)',
+        // Premium, navy-tinted elevation (matches landing --shadow-sm/md)
+        'gamified': '0 12px 34px rgba(20,50,93,0.10)',
+        'gamified-hover': '0 18px 44px rgba(20,50,93,0.14)',
+        'gamified-active': '0 6px 18px rgba(20,50,93,0.08)',
+        'soft': '0 8px 24px rgba(20,50,93,0.05)',
       }
     },
   },

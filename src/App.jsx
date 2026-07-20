@@ -29,6 +29,7 @@ export default function App() {
   const navigate = useNavigate();
   const [isInitializing, setIsInitializing] = useState(true);
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [language, setLanguage] = useState(null);
   const [progress, setProgress] = useState({
     doneLevels: [],
@@ -49,6 +50,7 @@ export default function App() {
         const user = await apiRequest("/api/auth/me", { method: "GET" });
         if (user) {
           setUsername(user.username);
+          setEmail(user.email);
           if (user.language) setLanguage(user.language);
         }
       } catch (err) {
@@ -60,14 +62,38 @@ export default function App() {
     restoreSession();
   }, []);
 
+  useEffect(() => {
+    async function fetchProgress() {
+      if (language && getToken()) {
+        try {
+          const data = await apiRequest(`/api/progress/${language}`, { method: "GET" });
+          setProgress({
+            doneLevels: data.doneLevels || [],
+            stars: data.stars || {},
+            currentLevel: data.currentLevel || 0,
+          });
+        } catch (err) {
+          console.error("Failed to fetch progress", err);
+        }
+      }
+    }
+    fetchProgress();
+  }, [language]);
+
   function handleLogin(data) {
     setUsername(data.username);
-    if (data.language) setLanguage(data.language);
-    navigate("/dashboard");
+    setEmail(data.email);
+    if (data.language) {
+      setLanguage(data.language);
+      navigate("/dashboard");
+    } else {
+      navigate("/choose-path");
+    }
   }
 
   function handleRegister(data) {
     setUsername(data.username);
+    setEmail(data.email);
     navigate("/choose-path");
   }
 
@@ -79,6 +105,7 @@ export default function App() {
   function handleLogout() {
     clearToken();
     setUsername("");
+    setEmail("");
     setLanguage(null);
     navigate("/");
   }
@@ -94,7 +121,36 @@ export default function App() {
   }
 
   if (isInitializing) {
-    return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", fontFamily: "sans-serif", color: "#25367C" }}>Restoring session...</div>;
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 20,
+          height: "100vh",
+          background: "#FFFDFA",
+          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+          color: "#14325D",
+        }}
+      >
+        <div
+          style={{
+            width: 46,
+            height: 46,
+            borderRadius: "50%",
+            border: "4px solid rgba(20,50,93,0.12)",
+            borderTopColor: "#F49B00",
+            animation: "cmxSpin 0.7s linear infinite",
+          }}
+        />
+        <div style={{ fontFamily: "'Sora', 'Inter', sans-serif", fontWeight: 600, fontSize: 15, letterSpacing: "-0.01em" }}>
+          Restoring your session…
+        </div>
+        <style>{`@keyframes cmxSpin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    );
   }
 
   const ProtectedRoute = ({ children }) => {
@@ -124,13 +180,22 @@ export default function App() {
             path="/dashboard" 
             element={
               <ProtectedRoute>
-                <Dashboard
-                  username={username}
-                  language={language}
-                  progress={progress}
-                  onLevelOpen={(index) => navigate(`/level/${index}`)}
-                  onLogout={handleLogout}
-                />
+                {language ? (
+                  <Dashboard
+                    username={username}
+                    email={email}
+                    language={language}
+                    progress={progress}
+                    onLevelOpen={(index) => navigate(`/level/${index}`)}
+                    onLogout={handleLogout}
+                    onUpdateProfile={(newUsername, newEmail) => {
+                      if (newUsername) setUsername(newUsername);
+                      if (newEmail) setEmail(newEmail);
+                    }}
+                  />
+                ) : (
+                  <Navigate to="/choose-path" />
+                )}
               </ProtectedRoute>
             } 
           />
@@ -138,12 +203,16 @@ export default function App() {
             path="/level/:id" 
             element={
               <ProtectedRoute>
-                <LevelWrapper 
-                  username={username} 
-                  language={language} 
-                  progress={progress} 
-                  onComplete={handleLevelComplete} 
-                />
+                {language ? (
+                  <LevelWrapper 
+                    username={username} 
+                    language={language} 
+                    progress={progress} 
+                    onComplete={handleLevelComplete} 
+                  />
+                ) : (
+                  <Navigate to="/choose-path" />
+                )}
               </ProtectedRoute>
             } 
           />

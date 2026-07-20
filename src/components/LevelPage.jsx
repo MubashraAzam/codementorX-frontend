@@ -44,7 +44,7 @@ function FloatingXP({ xp, x, y, onComplete }) {
       animate={{ opacity: 0, y: y - 100, scale: 1.5, rotate: 10 }}
       transition={{ duration: 1.2, ease: "easeOut" }}
       onAnimationComplete={onComplete}
-      className="fixed z-50 font-black text-4xl text-primary drop-shadow-lg pointer-events-none"
+      className="fixed z-50 font-black text-4xl text-[#8B6FE8] drop-shadow-lg pointer-events-none"
       style={{ left: 0, top: 0 }}
     >
       +{xp} XP
@@ -126,6 +126,8 @@ export default function LevelPage({
   const [activeTab, setActiveTab]     = useState("lesson");
   const [uiLang, setUiLang]           = useState("English");
   const [hintOpen, setHintOpen]       = useState(false);
+  const [generalHint, setGeneralHint] = useState(null);
+  const [generalHintLoading, setGeneralHintLoading] = useState(false);
 
   // Lesson state
   const [lessonContent, setLessonContent]   = useState(null);
@@ -173,6 +175,8 @@ export default function LevelPage({
     setQuizDone(false);
     setQuizError(null);
     setHintOpen(false);
+    setGeneralHint(null);
+    setGeneralHintLoading(false);
     setEarnedStars(progress.stars[currentIdx] || 0);
   }, [currentIdx]);
 
@@ -227,6 +231,19 @@ export default function LevelPage({
     setExtraLoading(false);
   }
 
+  async function getGeneralHint() {
+    if (generalHint || generalHintLoading) {
+      setHintOpen(!hintOpen);
+      return;
+    }
+    setHintOpen(true);
+    setGeneralHintLoading(true);
+    const prompt = `Give a short, encouraging hint for a student learning ${language === "python" ? "Python" : "C++"} "${level.title}". Do NOT give code solutions. Keep it to 2-3 sentences.`;
+    const text = await callAI(prompt);
+    setGeneralHint(text);
+    setGeneralHintLoading(false);
+  }
+
   async function getPracticeHint(idx) {
     setHintLoading(h => ({ ...h, [idx]: true }));
     const prompt = `Give a helpful step-by-step hint for practice exercise ${idx + 1} about ${language === "python" ? "Python" : "C++"} "${level.title}". Do NOT give the full solution — just guide the student.`;
@@ -265,8 +282,7 @@ export default function LevelPage({
       setQuizStep(s => s + 1);
     } else {
       setQuizDone(true);
-      const correct = quizAnswers.filter((a, i) => a === quizData[i].ans).length +
-        (quizAnswers[quizStep] === quizData[quizStep].ans ? 1 : 0);
+      const correct = quizAnswers.filter((a, i) => a === quizData[i].ans).length;
       const score = Math.round((correct / quizData.length) * 100);
       let stars = 0;
       if (score >= 85) stars = 3;
@@ -313,11 +329,11 @@ export default function LevelPage({
       className="flex flex-col h-screen bg-background"
     >
       {/* HEADER */}
-      <div className="h-20 bg-white/80 backdrop-blur-md border-b-2 border-gray-200 flex items-center justify-between px-6 shrink-0 z-20">
+      <div className="h-20 bg-white/70 backdrop-blur-xl border-b border-[#ECE7F4] flex items-center justify-between px-6 shrink-0 z-20">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => onBack && onBack()} 
-            className="p-2 rounded-xl border-2 border-gray-200 hover:bg-gray-50 text-gray-500 transition-colors"
+            className="p-2 rounded-xl border border-[#ECE7F4] hover:bg-gray-50 text-gray-500 transition-colors"
           >
             <ArrowLeft size={20} />
           </button>
@@ -342,7 +358,7 @@ export default function LevelPage({
       </div>
 
       {/* TABS */}
-      <div className="flex bg-white border-b-2 border-gray-200 px-6 gap-6 pt-2 shrink-0">
+      <div className="flex bg-white/70 backdrop-blur-xl border-b border-[#ECE7F4] px-6 gap-6 pt-2 shrink-0">
         {[
           { id: "lesson", label: "Lesson", icon: <BookOpen size={18}/> },
           { id: "practice", label: "Practice", icon: <PenTool size={18}/> },
@@ -351,7 +367,7 @@ export default function LevelPage({
           <button
             key={tab.id}
             onClick={() => { setActiveTab(tab.id); setHintOpen(false); }}
-            className={`flex items-center gap-2 pb-3 px-2 font-bold text-sm border-b-4 transition-colors ${activeTab === tab.id ? "border-primary text-primary" : "border-transparent text-gray-400 hover:text-gray-600"}`}
+            className={`flex items-center gap-2 pb-3 px-2 font-bold text-sm border-b-4 transition-colors ${activeTab === tab.id ? "border-[#8B6FE8] text-[#8B6FE8]" : "border-transparent text-gray-400 hover:text-gray-600"}`}
           >
             {tab.icon} {tab.label}
           </button>
@@ -366,7 +382,7 @@ export default function LevelPage({
             {/* LESSON TAB */}
             {activeTab === "lesson" && (
               <motion.div key="lesson" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
-                <div className="bg-white rounded-3xl p-8 border-2 border-gray-200 shadow-sm min-h-[300px]">
+                <div className="bg-white rounded-3xl p-8 border border-[#ECE7F4] shadow-sm min-h-[300px]">
                   {lessonLoading ? (
                     <LoadingDots label="Generating your lesson..." />
                   ) : lessonContent ? (
@@ -376,7 +392,7 @@ export default function LevelPage({
                   )}
                 </div>
 
-                {extraLoading && <div className="bg-white rounded-3xl p-8 border-2 border-gray-200"><LoadingDots label="Generating extra example..." /></div>}
+                {extraLoading && <div className="bg-white rounded-3xl p-8 border border-[#ECE7F4]"><LoadingDots label="Generating extra example..." /></div>}
                 {extraExample && !extraLoading && (
                   <div className="bg-info/5 rounded-3xl p-8 border-2 border-info/20">
                     <h3 className="font-heading font-black text-info mb-4 flex items-center gap-2"><Lightbulb size={20}/> Extra Example</h3>
@@ -385,10 +401,12 @@ export default function LevelPage({
                 )}
 
                 <div className="flex flex-wrap gap-4">
-                  <button className="btn-game btn-secondary" onClick={() => setHintOpen(!hintOpen)}><Lightbulb size={18}/> Hint</button>
+                  <button className="btn-game btn-secondary" onClick={getGeneralHint} disabled={generalHintLoading}>
+                    {generalHintLoading ? <RefreshCw className="animate-spin" size={18}/> : <Lightbulb size={18}/>} Hint
+                  </button>
                   <button className="btn-game btn-secondary" onClick={getExtraExample} disabled={extraLoading}><Sparkles size={18}/> More Examples</button>
                   <button className="btn-game btn-secondary" onClick={() => { setLessonContent(null); setExtraExample(null); loadLesson(); }}><RefreshCw size={18}/> Regenerate</button>
-                  <button className="btn-game btn-primary ml-auto" onClick={() => setActiveTab("quiz")}>Take Quiz <ChevronRight size={18}/></button>
+                  <button className="btn-game btn-cute ml-auto" onClick={() => setActiveTab("quiz")}>Take Quiz <ChevronRight size={18}/></button>
                 </div>
 
                 {hintOpen && (
@@ -396,7 +414,11 @@ export default function LevelPage({
                     <Lightbulb size={18} className="text-warning shrink-0 mt-0.5" />
                     <div>
                       <h4 className="font-heading font-bold text-warning mb-1 uppercase text-xs tracking-wider">Hint from AI Tutor</h4>
-                      <p className="text-accent/80 font-medium text-sm">Focus on the core concept of <strong className="text-accent">{level.title}</strong>. Break the problem into smaller parts.</p>
+                      {generalHintLoading ? (
+                        <div className="text-sm text-warning font-medium flex items-center gap-2"><RefreshCw className="animate-spin" size={14}/> Generating hint...</div>
+                      ) : (
+                        <div className="text-accent/80 font-medium text-sm" dangerouslySetInnerHTML={{ __html: formatAIMarkdown(generalHint || "") }} />
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -408,21 +430,21 @@ export default function LevelPage({
             {/* PRACTICE TAB */}
             {activeTab === "practice" && (
               <motion.div key="practice" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
-                <div className="bg-white rounded-3xl p-8 border-2 border-gray-200">
+                <div className="bg-white rounded-3xl p-8 border border-[#ECE7F4]">
                   <h3 className="font-heading font-black text-xl text-accent mb-2">Practice Exercises</h3>
                   <p className="text-gray-500 font-medium">Work through these exercises in your code editor. Use hints if you get stuck!</p>
                 </div>
 
                 {practiceLoading ? (
-                  <div className="bg-white rounded-3xl p-8 border-2 border-gray-200"><LoadingDots label="Generating practice exercises..." /></div>
+                  <div className="bg-white rounded-3xl p-8 border border-[#ECE7F4]"><LoadingDots label="Generating practice exercises..." /></div>
                 ) : practiceContent && (
-                  <div className="bg-white rounded-3xl p-8 border-2 border-gray-200">
+                  <div className="bg-white rounded-3xl p-8 border border-[#ECE7F4]">
                     <div className="max-w-none" dangerouslySetInnerHTML={{ __html: formatAIMarkdown(practiceContent) }} />
                   </div>
                 )}
 
                 {[0, 1, 2].map(idx => (
-                  <div key={idx} className="bg-white rounded-3xl p-6 border-2 border-gray-200">
+                  <div key={idx} className="bg-white rounded-3xl p-6 border border-[#ECE7F4]">
                     <h4 className="font-bold text-accent mb-4">Exercise {idx + 1} Helpers</h4>
                     <div className="flex gap-4 mb-4">
                       <button className="btn-game btn-secondary text-sm py-2 px-4" onClick={() => getPracticeHint(idx)} disabled={hintLoading[idx]}><Lightbulb size={16}/> Hint</button>
@@ -447,7 +469,7 @@ export default function LevelPage({
 
                 <div className="flex justify-between pt-4">
                   <button className="btn-game btn-secondary" onClick={() => { setPracticeContent(null); loadPractice(); }}><RefreshCw size={18}/> More Exercises</button>
-                  <button className="btn-game btn-primary" onClick={() => setActiveTab("quiz")}>Ready for Quiz <ChevronRight size={18}/></button>
+                  <button className="btn-game btn-cute" onClick={() => setActiveTab("quiz")}>Ready for Quiz <ChevronRight size={18}/></button>
                 </div>
               </motion.div>
             )}
@@ -455,15 +477,15 @@ export default function LevelPage({
             {/* QUIZ TAB */}
             {activeTab === "quiz" && (
               <motion.div key="quiz" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
-                {quizLoading && <div className="bg-white rounded-3xl p-8 border-2 border-gray-200"><LoadingDots label="Generating quiz questions..." /></div>}
+                {quizLoading && <div className="bg-white rounded-3xl p-8 border border-[#ECE7F4]"><LoadingDots label="Generating quiz questions..." /></div>}
 
                 {quizData && !quizDone && !quizLoading && (
-                  <div className="bg-white rounded-3xl p-8 border-2 border-gray-200 shadow-gamified">
+                  <div className="bg-white rounded-3xl p-8 border border-[#ECE7F4] shadow-gamified">
                     <div className="flex justify-between items-center mb-6">
                       <h3 className="font-heading font-black text-lg text-accent">Question {quizStep + 1} of {quizData.length}</h3>
                       <div className="flex gap-2">
                         {quizData.map((_, i) => (
-                          <div key={i} className={`w-3 h-3 rounded-full ${i < quizStep ? 'bg-success' : i === quizStep ? 'bg-primary' : 'bg-gray-200'}`} />
+                          <div key={i} className={`w-3 h-3 rounded-full ${i < quizStep ? 'bg-success' : i === quizStep ? 'bg-[#8B6FE8]' : 'bg-gray-200'}`} />
                         ))}
                       </div>
                     </div>
@@ -476,11 +498,11 @@ export default function LevelPage({
                         const isCorrect = i === quizData[quizStep].ans;
                         const isSelected = i === quizAnswers[quizStep];
                         
-                        let btnStyle = "border-2 border-gray-200 hover:border-primary hover:bg-yellow-50 bg-white text-gray-700 shadow-[0_4px_0_0_#e5e7eb]";
+                        let btnStyle = "border border-[#ECE7F4] hover:border-[#8B6FE8] hover:bg-[#8B6FE8]/10 bg-white text-gray-700 shadow-[0_4px_0_0_#E6EBF3]";
                         if (answered) {
-                          if (isCorrect) btnStyle = "bg-green-100 border-2 border-success text-success shadow-[0_4px_0_0_#4CAF50]";
+                          if (isCorrect) btnStyle = "bg-green-100 border-2 border-success text-success shadow-[0_4px_0_0_#2E9D62]";
                           else if (isSelected) btnStyle = "bg-red-100 border-2 border-danger text-danger shadow-none translate-y-1";
-                          else btnStyle = "bg-gray-50 border-2 border-gray-200 text-gray-400 shadow-none opacity-50";
+                          else btnStyle = "bg-gray-50 border border-[#ECE7F4] text-gray-400 shadow-none opacity-50";
                         }
 
                         return (
@@ -507,9 +529,11 @@ export default function LevelPage({
                     )}
 
                     <div className="flex justify-between items-center mt-8 pt-6 border-t-2 border-gray-100">
-                      <button className="btn-game btn-secondary text-sm py-2 px-4" onClick={() => setHintOpen(!hintOpen)}><Lightbulb size={16}/> Hint</button>
+                      <button className="btn-game btn-secondary text-sm py-2 px-4" onClick={getGeneralHint} disabled={generalHintLoading}>
+                        {generalHintLoading ? <RefreshCw className="animate-spin" size={16}/> : <Lightbulb size={16}/>} Hint
+                      </button>
                       {quizAnswers[quizStep] !== undefined && (
-                        <button className="btn-game btn-primary" onClick={nextQ}>
+                        <button className="btn-game btn-cute" onClick={nextQ}>
                           {quizStep === quizData.length - 1 ? "Finish" : "Next"} <ChevronRight size={18}/>
                         </button>
                       )}
@@ -518,7 +542,7 @@ export default function LevelPage({
                 )}
 
                 {quizDone && quizData && (
-                  <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-10 border-2 border-primary shadow-gamified text-center relative overflow-hidden">
+                  <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-10 border-2 border-[#8B6FE8] shadow-gamified text-center relative overflow-hidden">
                     {earnedStars >= 2 && <ConfettiBurst />}
                     <div className="text-6xl mb-6">{["💪", "⭐", "⭐⭐", "⭐⭐⭐"][earnedStars]}</div>
                     <h2 className="font-heading font-black text-4xl text-accent mb-2">{finalScore}% Score</h2>
@@ -534,7 +558,7 @@ export default function LevelPage({
                     <div className="flex flex-wrap justify-center gap-4">
                       <button className="btn-game btn-secondary" onClick={() => { setQuizStep(0); setQuizAnswers([]); setQuizDone(false); }}><RefreshCw size={18}/> Retry</button>
                       {finalScore >= 50 && currentIdx < 19 && (
-                        <button className="btn-game btn-primary" onClick={() => navigateLevel(1)}>Next Level <ChevronRight size={18}/></button>
+                        <button className="btn-game btn-cute" onClick={() => navigateLevel(1)}>Next Level <ChevronRight size={18}/></button>
                       )}
                     </div>
                   </motion.div>
@@ -547,17 +571,17 @@ export default function LevelPage({
       </div>
 
       {/* BOTTOM NAV */}
-      <div className="h-20 bg-white border-t-2 border-gray-200 px-6 shrink-0 flex items-center justify-between z-20">
+      <div className="h-20 bg-white/70 backdrop-blur-xl border-t border-[#ECE7F4] px-6 shrink-0 flex items-center justify-between z-20">
         <button onClick={() => navigateLevel(-1)} disabled={currentIdx === 0} className="btn-game btn-secondary text-sm py-2 disabled:opacity-50 border-gray-200">
           Previous
         </button>
         <div className="flex flex-col items-center flex-1 mx-8 max-w-sm">
-          <div className="w-full h-3 bg-gray-100 rounded-full border-2 border-gray-200 overflow-hidden mb-1">
-            <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+          <div className="w-full h-3 bg-gray-100 rounded-full border border-[#ECE7F4] overflow-hidden mb-1">
+            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#6E8BF5,#9B7DF0)" }} />
           </div>
           <span className="text-xs font-bold text-gray-400">{currentIdx + 1} / 20</span>
         </div>
-        <button onClick={() => navigateLevel(1)} disabled={currentIdx === 19} className="btn-game btn-primary text-sm py-2 disabled:opacity-50">
+        <button onClick={() => navigateLevel(1)} disabled={currentIdx === 19} className="btn-game btn-cute text-sm py-2 disabled:opacity-50">
           Next
         </button>
       </div>
@@ -604,21 +628,21 @@ function VoiceBar({ onSpeak, uiLang, onLangChange, level, language }) {
   }
 
   return (
-    <div className="bg-primary/5 border-2 border-primary/20 rounded-3xl p-6 mt-8 shadow-sm">
+    <div className="bg-[#8B6FE8]/5 border-2 border-[#8B6FE8]/20 rounded-3xl p-6 mt-8 shadow-sm">
       <div className="flex items-center gap-2 mb-4">
-        <Sparkles size={18} className="text-primary" />
+        <Sparkles size={18} className="text-[#8B6FE8]" />
         <h3 className="font-heading font-black text-accent text-sm uppercase tracking-wide">Ask the AI Tutor</h3>
       </div>
       <div className="flex flex-col sm:flex-row items-center gap-4 mb-4">
         <div className="flex gap-2">
-          <button onClick={onSpeak} className="w-12 h-12 bg-white rounded-full flex items-center justify-center border-2 border-primary/30 text-accent hover:scale-105 hover:bg-primary/10 transition-all shadow-sm">
+          <button onClick={onSpeak} className="w-12 h-12 bg-white rounded-full flex items-center justify-center border-2 border-[#8B6FE8]/30 text-accent hover:scale-105 hover:bg-[#8B6FE8]/10 transition-all shadow-sm">
             <Play size={20} className="ml-1"/>
           </button>
-          <button onClick={toggleRecording} className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all shadow-sm ${recording ? 'bg-danger border-danger text-white animate-pulse' : 'bg-white border-primary/30 text-accent hover:scale-105 hover:bg-primary/10'}`}>
+          <button onClick={toggleRecording} className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all shadow-sm ${recording ? 'bg-danger border-danger text-white animate-pulse' : 'bg-white border-[#8B6FE8]/30 text-accent hover:scale-105 hover:bg-[#8B6FE8]/10'}`}>
             {recording ? <StopCircle size={20}/> : <Mic size={20}/>}
           </button>
         </div>
-        <div className="flex-1 w-full flex bg-white rounded-2xl border-2 border-primary/20 overflow-hidden shadow-inner">
+        <div className="flex-1 w-full flex bg-white rounded-2xl border-2 border-[#8B6FE8]/20 overflow-hidden shadow-inner">
           <input
             type="text"
             value={question}
@@ -627,7 +651,7 @@ function VoiceBar({ onSpeak, uiLang, onLangChange, level, language }) {
             placeholder="Ask AI tutor..."
             className="flex-1 bg-transparent border-none outline-none px-4 py-3 text-sm font-medium text-accent"
           />
-          <button onClick={submitQuestion} disabled={asking || !question.trim()} className="bg-primary text-accent font-bold px-6 py-3 text-sm hover:bg-primaryHover disabled:opacity-50 transition-colors">
+          <button onClick={submitQuestion} disabled={asking || !question.trim()} className="bg-[#8B6FE8] text-white font-bold px-6 py-3 text-sm hover:bg-[#7B5FE0] disabled:opacity-50 transition-colors">
             Ask
           </button>
         </div>
@@ -635,8 +659,8 @@ function VoiceBar({ onSpeak, uiLang, onLangChange, level, language }) {
 
       {asking && <LoadingDots label="Tutor is thinking..." />}
       {answer && !asking && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-5 border-2 border-primary/15 mt-4 relative">
-          <div className="absolute -top-3 left-4 bg-primary text-accent text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg shadow-sm">AI Response</div>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-5 border-2 border-[#8B6FE8]/15 mt-4 relative">
+          <div className="absolute -top-3 left-4 bg-[#8B6FE8] text-white text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg shadow-sm">AI Response</div>
           <div className="max-w-none pt-1" dangerouslySetInnerHTML={{ __html: formatAIMarkdown(answer) }} />
         </motion.div>
       )}
@@ -649,7 +673,7 @@ function LoadingDots({ label }) {
     <div className="flex items-center gap-3 text-gray-400 font-bold text-sm">
       <div className="flex gap-1.5">
         {[0, 1, 2].map(i => (
-          <motion.div key={i} animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }} className="w-2.5 h-2.5 bg-primary rounded-full" />
+          <motion.div key={i} animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }} className="w-2.5 h-2.5 bg-[#8B6FE8] rounded-full" />
         ))}
       </div>
       {label}
