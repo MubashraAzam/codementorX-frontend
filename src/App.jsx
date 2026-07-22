@@ -31,11 +31,35 @@ export default function App() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [language, setLanguage] = useState(null);
+  const [profile, setProfile] = useState({
+    firstName: "",
+    lastName: "",
+    dob: "",
+    contact: "",
+    avatarUrl: "",
+    createdAt: "",
+  });
   const [progress, setProgress] = useState({
     doneLevels: [],
     stars: {},
     currentLevel: 0,
   });
+
+  // Merge a user payload (from /me or a profile update) into local state
+  function applyUser(user) {
+    if (!user) return;
+    if (user.username) setUsername(user.username);
+    if (user.email) setEmail(user.email);
+    if (user.language) setLanguage(user.language);
+    setProfile((prev) => ({
+      firstName: user.firstName ?? prev.firstName,
+      lastName: user.lastName ?? prev.lastName,
+      dob: user.dob ?? prev.dob,
+      contact: user.contact ?? prev.contact,
+      avatarUrl: user.avatarUrl ?? prev.avatarUrl,
+      createdAt: user.createdAt ?? prev.createdAt,
+    }));
+  }
 
   // Restore session from JWT on reload
   useEffect(() => {
@@ -45,14 +69,10 @@ export default function App() {
         setIsInitializing(false);
         return;
       }
-      
+
       try {
         const user = await apiRequest("/api/auth/me", { method: "GET" });
-        if (user) {
-          setUsername(user.username);
-          setEmail(user.email);
-          if (user.language) setLanguage(user.language);
-        }
+        applyUser(user);
       } catch (err) {
         console.error("Session restore failed:", err.message);
       } finally {
@@ -80,11 +100,20 @@ export default function App() {
     fetchProgress();
   }, [language]);
 
+  // Pull the full profile (login/register responses are slim) in the background
+  async function loadFullProfile() {
+    try {
+      const user = await apiRequest("/api/auth/me", { method: "GET" });
+      applyUser(user);
+    } catch (err) {
+      console.error("Failed to load profile:", err.message);
+    }
+  }
+
   function handleLogin(data) {
-    setUsername(data.username);
-    setEmail(data.email);
+    applyUser(data);
+    loadFullProfile();
     if (data.language) {
-      setLanguage(data.language);
       navigate("/dashboard");
     } else {
       navigate("/choose-path");
@@ -92,8 +121,8 @@ export default function App() {
   }
 
   function handleRegister(data) {
-    setUsername(data.username);
-    setEmail(data.email);
+    applyUser(data);
+    loadFullProfile();
     navigate("/choose-path");
   }
 
@@ -107,6 +136,7 @@ export default function App() {
     setUsername("");
     setEmail("");
     setLanguage(null);
+    setProfile({ firstName: "", lastName: "", dob: "", contact: "", avatarUrl: "", createdAt: "" });
     navigate("/");
   }
 
@@ -185,13 +215,11 @@ export default function App() {
                     username={username}
                     email={email}
                     language={language}
+                    profile={profile}
                     progress={progress}
                     onLevelOpen={(index) => navigate(`/level/${index}`)}
                     onLogout={handleLogout}
-                    onUpdateProfile={(newUsername, newEmail) => {
-                      if (newUsername) setUsername(newUsername);
-                      if (newEmail) setEmail(newEmail);
-                    }}
+                    onUpdateProfile={applyUser}
                   />
                 ) : (
                   <Navigate to="/choose-path" />

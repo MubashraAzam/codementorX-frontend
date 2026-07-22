@@ -5,6 +5,9 @@ import { apiRequest } from "../utils/api";
 
 const CONFETTI_COLORS = ["#F49B00", "#25367C", "#2e9d62", "#c62828", "#8e44ad", "#f5c842"];
 
+// Minimum interview score (%) required to pass and unlock the certificate.
+const PASS_THRESHOLD = 75;
+
 function ConfettiBurst() {
   const pieces = useRef(
     Array.from({ length: 60 }, (_, i) => ({
@@ -90,19 +93,72 @@ export default function Certificate({ username = "Student", language = "python",
   const [callState, setCallState] = useState("idle");
   const [interviewResult, setInterviewResult] = useState(null);
   const [interviewStarted, setInterviewStarted] = useState(false);
+  const [interviewCompleted, setInterviewCompleted] = useState(false);
   const pollingIntervalRef = useRef(null);
+
+  // Removes the injected Dograh widget script and tears down any active widget
+  // so the interview can never silently restart once it has been completed.
+  function teardownDograh() {
+    try {
+      const w = window.DograhWidget;
+      if (w) {
+        if (typeof w.endCall === "function") w.endCall();
+        if (typeof w.destroy === "function") w.destroy();
+        if (typeof w.close === "function") w.close();
+      }
+    } catch (err) {
+      console.error("Error tearing down Dograh widget:", err);
+    }
+    const existingScript = document.getElementById("dograh-widget");
+    if (existingScript) existingScript.remove();
+  }
 
   React.useEffect(() => {
     return () => {
       if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+      teardownDograh();
     };
   }, []);
 
+  // Rehydrate previously saved projects and interview result so uploads (and a
+  // completed interview) persist across navigation instead of resetting to empty.
   React.useEffect(() => {
-    if (initialView === "interview" && !interviewStarted) {
+    let cancelled = false;
+    (async () => {
+      try {
+        const progress = await apiRequest(`/api/progress/${language}`, { method: "GET" });
+        if (cancelled) return;
+
+        const saved = progress?.solvedProjects || {};
+        const restored = {};
+        for (const [projId, p] of Object.entries(saved)) {
+          restored[projId] = {
+            status: (p?.stars || 0) >= 2 ? "solved" : "needs_retry",
+            stars: p?.stars || 0,
+            feedback: p?.feedback || null,
+            fileName: p?.fileName || null,
+          };
+        }
+        setProjectState(restored);
+
+        // Skip restoring a past result when we're opening straight into a fresh
+        // interview, so the stale score doesn't flash over the new call.
+        const iv = progress?.interview;
+        if (initialView !== "interview" && iv && iv.percentage !== null && iv.percentage !== undefined) {
+          setInterviewResult({ percentage: iv.percentage, feedback: iv.feedback });
+        }
+      } catch (err) {
+        console.error("Failed to load saved progress:", err.message);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [language, initialView]);
+
+  React.useEffect(() => {
+    if (initialView === "interview" && !interviewStarted && !interviewCompleted) {
       startInterview();
     }
-  }, [initialView, interviewStarted]);
+  }, [initialView, interviewStarted, interviewCompleted]);
 
   const solvedIds = Object.keys(projectState).filter(id => (projectState[id]?.stars || 0) >= 2);
   const solvedCount = solvedIds.length;
@@ -144,7 +200,7 @@ export default function Certificate({ username = "Student", language = "python",
   };
 
   React.useEffect(() => {
-    if (!interviewStarted) return;
+    if (!interviewStarted || interviewCompleted) return;
 
     let pollForWidget;
     
@@ -202,11 +258,12 @@ export default function Certificate({ username = "Student", language = "python",
     return () => {
       if (pollForWidget) clearInterval(pollForWidget);
     };
-  }, [interviewStarted, language]);
+  }, [interviewStarted, language, interviewCompleted]);
 
   async function startInterview() {
     setView("interview");
     setInterviewStarted(true);
+    setInterviewCompleted(false);
     setCallState("starting");
     setInterviewResult(null);
 
@@ -242,6 +299,10 @@ export default function Certificate({ username = "Student", language = "python",
         const progress = await apiRequest(`/api/interview/progress/${language}`, { method: "GET" });
         if (progress?.interview?.percentage !== null && progress?.interview?.percentage !== undefined) {
           clearInterval(pollingIntervalRef.current);
+          // Interview is graded — stop and remove the widget so it can't restart.
+          teardownDograh();
+          setInterviewCompleted(true);
+          setInterviewStarted(false);
           setInterviewResult({
             percentage: progress.interview.percentage,
             feedback: progress.interview.feedback
@@ -403,15 +464,25 @@ export default function Certificate({ username = "Student", language = "python",
             </motion.div>
           ) : (
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-              <div className="text-6xl mb-6">{interviewResult.percentage >= 85 ? "🎉" : "💪"}</div>
-              <h2 className={`font-heading font-black text-5xl mb-4 ${interviewResult.percentage >= 85 ? "text-success" : "text-[#8B6FE8]"}`}>
+              <div className="text-6xl mb-6">{interviewResult.percentage >= PASS_THRESHOLD ? "🎉" : "💪"}</div>
+              <h2 className={`font-heading font-black text-5xl mb-2 ${interviewResult.percentage >= PASS_THRESHOLD ? "text-success" : "text-[#8B6FE8]"}`}>
                 {interviewResult.percentage}% Score
               </h2>
-              <p className="text-gray-600 font-medium leading-relaxed max-w-lg mx-auto mb-10 bg-gray-50 p-6 rounded-2xl border-2 border-gray-100">
+              <p className={`font-heading font-black text-xl mb-4 ${interviewResult.percentage >= PASS_THRESHOLD ? "text-success" : "text-danger"}`}>
+                {interviewResult.percentage >= PASS_THRESHOLD
+                  ? "Congratulations — you passed the interview!"
+                  : "You did not pass the interview"}
+              </p>
+              <p className="text-gray-600 font-medium leading-relaxed max-w-lg mx-auto mb-6 bg-gray-50 p-6 rounded-2xl border-2 border-gray-100">
                 {interviewResult.feedback}
               </p>
+              <p className="text-gray-500 font-medium max-w-lg mx-auto mb-10">
+                {interviewResult.percentage >= PASS_THRESHOLD
+                  ? "Your certificate is now unlocked. Claim it below to complete the course."
+                  : `You need at least ${PASS_THRESHOLD}% to pass. Review the lessons and your projects, then retake the interview when you're ready — your progress is saved.`}
+              </p>
 
-              {interviewResult.percentage >= 85 ? (
+              {interviewResult.percentage >= PASS_THRESHOLD ? (
                 <button onClick={async () => {
                   try {
                     await apiRequest(`/api/certificate/${language}/issue`, { method: "POST" });
@@ -424,7 +495,7 @@ export default function Certificate({ username = "Student", language = "python",
                 </button>
               ) : (
                 <button onClick={startInterview} className="btn-game btn-secondary w-full max-w-xs py-4 text-lg mx-auto shadow-sm">
-                  <RefreshCw className="mr-2"/> Retry Interview
+                  <RefreshCw className="mr-2"/> Retake Interview
                 </button>
               )}
             </motion.div>

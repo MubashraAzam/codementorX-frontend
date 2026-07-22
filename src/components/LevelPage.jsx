@@ -153,6 +153,8 @@ export default function LevelPage({
   const [quizAnswers, setQuizAnswers] = useState([]);
   const [quizDone, setQuizDone]     = useState(false);
   const [quizError, setQuizError]   = useState(null);
+  const [quizHints, setQuizHints]   = useState({});       // keyed by quizStep
+  const [quizHintLoading, setQuizHintLoading] = useState({});
 
   const [earnedStars, setEarnedStars] = useState(
     progress.stars[levelIndex] || 0
@@ -174,6 +176,8 @@ export default function LevelPage({
     setQuizAnswers([]);
     setQuizDone(false);
     setQuizError(null);
+    setQuizHints({});
+    setQuizHintLoading({});
     setHintOpen(false);
     setGeneralHint(null);
     setGeneralHintLoading(false);
@@ -242,6 +246,27 @@ export default function LevelPage({
     const text = await callAI(prompt);
     setGeneralHint(text);
     setGeneralHintLoading(false);
+  }
+
+  async function getQuizHint() {
+    const step = quizStep;
+    // Toggle closed if this question's hint is already loaded
+    if (quizHints[step] !== undefined) {
+      setQuizHints(h => {
+        const next = { ...h };
+        delete next[step];
+        return next;
+      });
+      return;
+    }
+    if (quizHintLoading[step]) return;
+    setQuizHintLoading(h => ({ ...h, [step]: true }));
+    const q = quizData[step];
+    const optionList = q.opts.map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join("; ");
+    const prompt = `A student is answering this ${language === "python" ? "Python" : "C++"} multiple-choice question about "${level.title}": "${q.q}" Options: ${optionList}. Give a short 1-2 sentence hint that nudges them toward the right reasoning. Do NOT reveal or name the correct answer.`;
+    const text = await callAI(prompt);
+    setQuizHints(h => ({ ...h, [step]: text }));
+    setQuizHintLoading(h => ({ ...h, [step]: false }));
   }
 
   async function getPracticeHint(idx) {
@@ -528,9 +553,19 @@ export default function LevelPage({
                       </motion.div>
                     )}
 
+                    {quizHintLoading[quizStep] && (
+                      <div className="mt-6"><LoadingDots label="Generating hint..." /></div>
+                    )}
+                    {quizHints[quizStep] && (
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 bg-warning/10 border-2 border-warning/30 rounded-xl p-4">
+                        <div className="text-warning font-heading font-bold mb-2 flex items-center gap-1.5 text-sm"><Lightbulb size={16}/> Hint</div>
+                        <div className="text-sm text-accent/80 font-medium" dangerouslySetInnerHTML={{ __html: formatAIMarkdown(quizHints[quizStep]) }} />
+                      </motion.div>
+                    )}
+
                     <div className="flex justify-between items-center mt-8 pt-6 border-t-2 border-gray-100">
-                      <button className="btn-game btn-secondary text-sm py-2 px-4" onClick={getGeneralHint} disabled={generalHintLoading}>
-                        {generalHintLoading ? <RefreshCw className="animate-spin" size={16}/> : <Lightbulb size={16}/>} Hint
+                      <button className="btn-game btn-secondary text-sm py-2 px-4" onClick={getQuizHint} disabled={quizHintLoading[quizStep] || quizAnswers[quizStep] !== undefined}>
+                        {quizHintLoading[quizStep] ? <RefreshCw className="animate-spin" size={16}/> : <Lightbulb size={16}/>} Hint
                       </button>
                       {quizAnswers[quizStep] !== undefined && (
                         <button className="btn-game btn-cute" onClick={nextQ}>
