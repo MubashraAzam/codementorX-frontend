@@ -94,6 +94,7 @@ export default function Certificate({ username = "Student", language = "python",
   const [interviewResult, setInterviewResult] = useState(null);
   const [interviewStarted, setInterviewStarted] = useState(false);
   const [interviewCompleted, setInterviewCompleted] = useState(false);
+  const [interviewPassed, setInterviewPassed] = useState(false);
   const pollingIntervalRef = useRef(null);
 
   // Removes the injected Dograh widget script and tears down any active widget
@@ -141,11 +142,19 @@ export default function Certificate({ username = "Student", language = "python",
         }
         setProjectState(restored);
 
-        // Skip restoring a past result when we're opening straight into a fresh
-        // interview, so the stale score doesn't flash over the new call.
         const iv = progress?.interview;
-        if (initialView !== "interview" && iv && iv.percentage !== null && iv.percentage !== undefined) {
-          setInterviewResult({ percentage: iv.percentage, feedback: iv.feedback });
+        if (iv && iv.percentage !== null && iv.percentage !== undefined) {
+          if (iv.passed) {
+            // Already passed — restore the result and mark it complete so we
+            // never re-conduct the interview; the user goes straight to claim.
+            setInterviewResult({ percentage: iv.percentage, feedback: iv.feedback });
+            setInterviewPassed(true);
+            setInterviewCompleted(true);
+          } else if (initialView !== "interview") {
+            // A past (failed) score — show it, but not when opening straight into
+            // a fresh interview, so the stale score doesn't flash over the new call.
+            setInterviewResult({ percentage: iv.percentage, feedback: iv.feedback });
+          }
         }
       } catch (err) {
         console.error("Failed to load saved progress:", err.message);
@@ -155,10 +164,10 @@ export default function Certificate({ username = "Student", language = "python",
   }, [language, initialView]);
 
   React.useEffect(() => {
-    if (initialView === "interview" && !interviewStarted && !interviewCompleted) {
+    if (initialView === "interview" && !interviewStarted && !interviewCompleted && !interviewPassed) {
       startInterview();
     }
-  }, [initialView, interviewStarted, interviewCompleted]);
+  }, [initialView, interviewStarted, interviewCompleted, interviewPassed]);
 
   const solvedIds = Object.keys(projectState).filter(id => (projectState[id]?.stars || 0) >= 2);
   const solvedCount = solvedIds.length;
@@ -261,6 +270,13 @@ export default function Certificate({ username = "Student", language = "python",
   }, [interviewStarted, language, interviewCompleted]);
 
   async function startInterview() {
+    // A passed interview is final — never re-conduct it. Send the user straight
+    // to the result screen where they can claim their certificate.
+    if (interviewPassed) {
+      setView("interview");
+      return;
+    }
+
     setView("interview");
     setInterviewStarted(true);
     setInterviewCompleted(false);
@@ -368,7 +384,9 @@ export default function Certificate({ username = "Student", language = "python",
             </div>
             {solvedCount >= 5 && (
               <motion.button initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} onClick={startInterview} className="btn-game btn-cute mt-8 px-8 py-4 text-lg">
-                <PlayCircle size={20} className="mr-2"/> Conduct AI Interview Now
+                {interviewPassed
+                  ? <><Award size={20} className="mr-2"/> View Result & Claim Certificate</>
+                  : <><PlayCircle size={20} className="mr-2"/> Conduct AI Interview Now</>}
               </motion.button>
             )}
           </div>
