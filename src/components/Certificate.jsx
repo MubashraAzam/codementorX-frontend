@@ -435,8 +435,7 @@ export default function Certificate({ username = "Student", language = "python",
   if (view === "interview") return (
     <PageWrapper>
       <TopBar title={`🎤 AI Voice Interview — ${langLabel}`} />
-      <div className="flex-1 overflow-y-auto bg-background">
-        <div className="min-h-full flex items-center justify-center p-6">
+      <div className="flex-1 flex items-center justify-center p-6 bg-background">
         <div className="w-full max-w-2xl bg-white rounded-[2rem] border border-[#E8EDF5] shadow-gamified p-10 text-center">
           
           {!interviewResult ? (
@@ -502,7 +501,6 @@ export default function Certificate({ username = "Student", language = "python",
             </motion.div>
           )}
 
-        </div>
         </div>
       </div>
     </PageWrapper>
