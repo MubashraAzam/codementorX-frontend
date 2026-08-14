@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { FaGoogle, FaFacebook, FaGithub, FaLinkedin } from "react-icons/fa";
 import { apiRequest, saveToken } from "../utils/api";
 import codementorLogo from "../assets/codementor-logo.png";
 
@@ -497,9 +498,9 @@ export default function CodeMentorLanding({ onLogin, onRegister }) {
         <div className="cmx-footer-bottom">
           <span>© {new Date().getFullYear()} CodeMentor-X. All rights reserved.</span>
           <div className="cmx-footer-social">
-            <a href="https://github.com/" target="_blank" rel="noopener noreferrer"><i className="bx bxl-github" /></a>
-            <a href="https://www.linkedin.com/" target="_blank" rel="noopener noreferrer"><i className="bx bxl-linkedin" /></a>
-            <a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer"><i className="bx bxl-facebook" /></a>
+            <a href="https://github.com/" target="_blank" rel="noopener noreferrer"><i className="bx bxl-github" /><FaGithub/></a>
+            <a href="https://www.linkedin.com/" target="_blank" rel="noopener noreferrer"><i className="bx bxl-linkedin" /><FaLinkedin/></a>
+            <a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer"><i className="bx bxl-facebook" /><FaFacebook/></a>
           </div>
         </div>
       </footer>
@@ -551,10 +552,10 @@ export default function CodeMentorLanding({ onLogin, onRegister }) {
                   <button type="submit" className="cmx-sbtn" disabled={!isLoginValid || authLoading}>{authLoading ? "Logging in..." : "Log in"}</button>
                   <div className="cmx-divider">OR CONTINUE WITH</div>
                   <div className="cmx-social">
-                    <a href="https://accounts.google.com/" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-google" /></a>
-                    <a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-facebook" /></a>
-                    <a href="https://github.com/" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-github" /></a>
-                    <a href="https://www.linkedin.com/" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-linkedin" /></a>
+                    <a href="https://accounts.google.com/" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-google" /><FaGoogle/></a>
+                    <a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-facebook" /><FaFacebook/></a>
+                    <a href="https://github.com/" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-github" /><FaGithub/></a>
+                    <a href="https://www.linkedin.com/" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-linkedin" /><FaLinkedin/></a>
                   </div>
                   <p className="cmx-switch">No account?{" "}
                     <a href="#reg" onClick={(e) => switchAuthPanel("register", e)}>Register here</a>
@@ -618,10 +619,10 @@ export default function CodeMentorLanding({ onLogin, onRegister }) {
                   <button type="submit" className="cmx-sbtn" style={{ marginTop: 8 }} disabled={!isRegisterValid || authLoading}>{authLoading ? "Creating account..." : "Create account"}</button>
                   <div className="cmx-divider">OR REGISTER WITH</div>
                   <div className="cmx-social">
-                    <a href="https://accounts.google.com/" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-google" /></a>
-                    <a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-facebook" /></a>
-                    <a href="https://github.com/login" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-github" /></a>
-                    <a href="https://www.linkedin.com/login" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-linkedin" /></a>
+                    <a href="https://accounts.google.com/" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-google" /><FaGoogle/></a>
+                    <a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-facebook" /><FaFacebook/></a>
+                    <a href="https://github.com/login" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-github" /><FaGithub/></a>
+                    <a href="https://www.linkedin.com/login" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-linkedin" /><FaLinkedin/></a>
                   </div>
                   <p className="cmx-switch">Have an account?{" "}
                     <a href="#login" onClick={(e) => switchAuthPanel("login", e)}>Log in here</a>
