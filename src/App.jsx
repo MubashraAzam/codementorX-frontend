@@ -4,6 +4,7 @@ import CodeMentorLanding from "./components/CodeMentorLanding";
 import ChoosePath from "./components/ChoosePath";
 import Dashboard from "./components/Dashboard";
 import LevelPage from "./components/LevelPage";
+import VerifyCertificate from "./components/VerifyCertificate";
 import AnimatedBackground from "./components/AnimatedBackground";
 import { apiRequest, getToken, clearToken } from "./utils/api";
 
@@ -243,6 +244,10 @@ export default function App() {
                 )}
               </ProtectedRoute>
             } 
+          />
+          <Route 
+            path="/verify/:certId" 
+            element={<VerifyCertificate />} 
           />
         </Routes>
       </div>

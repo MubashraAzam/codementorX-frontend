@@ -322,6 +322,8 @@ export default function Dashboard({
     return (
       <Certificate
         username={username}
+        email={email}
+        profile={profile}
         language={language}
         onBack={() => setPage(null)}
       />

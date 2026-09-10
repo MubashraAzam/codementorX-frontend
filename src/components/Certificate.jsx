@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, CheckCircle, Upload, Lock, Award, PlayCircle, RefreshCw, Star, Printer, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle, Upload, Lock, Award, PlayCircle, RefreshCw, Star, Printer, XCircle, ShieldCheck, QrCode as QrIcon, ExternalLink, Calendar, Mail, Phone } from "lucide-react";
+import QRCode from "qrcode";
 import { apiRequest } from "../utils/api";
 
 const CONFETTI_COLORS = ["#F49B00", "#25367C", "#2e9d62", "#c62828", "#8e44ad", "#f5c842"];
@@ -79,7 +80,7 @@ async function reviewCodeWithAI(fileContent, fileName, language, projectTitle, p
   }
 }
 
-export default function Certificate({ username = "Student", language = "python", onBack, initialView = "projects" }) {
+export default function Certificate({ username = "Student", email = "", profile = {}, language = "python", onBack, initialView = "projects" }) {
   const PROJECTS = language === "python" ? PYTHON_PROJECTS : CPP_PROJECTS;
   const acceptExt = language === "python" ? ".py" : ".cpp,.cc,.cxx";
   const langLabel = language === "python" ? "🐍 Python" : "⚡ C++";
@@ -95,7 +96,27 @@ export default function Certificate({ username = "Student", language = "python",
   const [interviewStarted, setInterviewStarted] = useState(false);
   const [interviewCompleted, setInterviewCompleted] = useState(false);
   const [interviewPassed, setInterviewPassed] = useState(false);
+  const [certificate, setCertificate] = useState(null);
+  const [qrCodeUrl, setQrCodeUrl] = useState("");
   const pollingIntervalRef = useRef(null);
+
+  // Generate QR Code pointing to public verification link
+  React.useEffect(() => {
+    const certNo = certificate?.certificateNumber;
+    if (certNo) {
+      const verifyUrl = `${window.location.origin}/verify/${certNo}`;
+      QRCode.toDataURL(verifyUrl, {
+        width: 180,
+        margin: 1,
+        color: {
+          dark: "#25367C",
+          light: "#FFFFFF",
+        },
+      })
+        .then((url) => setQrCodeUrl(url))
+        .catch((err) => console.error("QR Code generation error:", err));
+    }
+  }, [certificate]);
 
   // Removes the injected Dograh widget script and tears down any active widget
   // so the interview can never silently restart once it has been completed.
@@ -156,6 +177,19 @@ export default function Certificate({ username = "Student", language = "python",
             setInterviewResult({ percentage: iv.percentage, feedback: iv.feedback });
           }
         }
+
+        if (progress?.certificate) {
+          setCertificate(progress.certificate);
+        } else {
+          try {
+            const certData = await apiRequest(`/api/certificate/${language}`, { method: "GET" });
+            if (certData && certData.certificateNumber) {
+              setCertificate(certData);
+            }
+          } catch {
+            // Certificate not issued yet
+          }
+        }
       } catch (err) {
         console.error("Failed to load saved progress:", err.message);
       }
@@ -164,10 +198,10 @@ export default function Certificate({ username = "Student", language = "python",
   }, [language, initialView]);
 
   React.useEffect(() => {
-    if (initialView === "interview" && !interviewStarted && !interviewCompleted && !interviewPassed) {
+    if (initialView === "interview" && !interviewStarted && !interviewCompleted && !interviewPassed && !certificate) {
       startInterview();
     }
-  }, [initialView, interviewStarted, interviewCompleted, interviewPassed]);
+  }, [initialView, interviewStarted, interviewCompleted, interviewPassed, certificate]);
 
   const solvedIds = Object.keys(projectState).filter(id => (projectState[id]?.stars || 0) >= 2);
   const solvedCount = solvedIds.length;
@@ -204,8 +238,8 @@ export default function Certificate({ username = "Student", language = "python",
   }
 
   const DOGRAH_TOKENS = {
-    python: "emb_FZ1Vl_NeqUiqFoYrXbGs3r9TxGPMBaEKuy9s7wGgytE",
-    cpp: "emb_kGxkMJ2Bxt6r5S7e4xMiQW1XMzyuytt4IWNsEm30QvE"
+    python: import.meta.env.VITE_DOGRAH_PYTHON_TOKEN || "emb_FZ1Vl_NeqUiqFoYrXbGs3r9TxGPMBaEKuy9s7wGgytE",
+    cpp: import.meta.env.VITE_DOGRAH_CPP_TOKEN || "emb_kGxkMJ2Bxt6r5S7e4xMiQW1XMzyuytt4IWNsEm30QvE",
   };
 
   React.useEffect(() => {
@@ -270,9 +304,13 @@ export default function Certificate({ username = "Student", language = "python",
   }, [interviewStarted, language, interviewCompleted]);
 
   async function startInterview() {
+    if (certificate) {
+      setView("certificate");
+      return;
+    }
     // A passed interview is final — never re-conduct it. Send the user straight
     // to the result screen where they can claim their certificate.
-    if (interviewPassed) {
+    if (interviewPassed || (interviewResult?.percentage || 0) >= PASS_THRESHOLD) {
       setView("interview");
       return;
     }
@@ -293,6 +331,13 @@ export default function Certificate({ username = "Student", language = "python",
       const script = document.createElement("script");
       script.id = "dograh-widget";
       script.src = `https://app.dograh.com/embed/dograh-widget.js?token=${token}&environment=production&apiEndpoint=https://api.dograh.com`;
+      script.setAttribute(
+        "data-dograh-context",
+        JSON.stringify({
+          page_url: window.location.href,
+          today: new Date().toISOString().slice(0, 10),
+        })
+      );
       script.async = true;
       
       script.onload = () => {
@@ -383,10 +428,27 @@ export default function Certificate({ username = "Student", language = "python",
               </div>
             </div>
             {solvedCount >= 5 && (
-              <motion.button initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} onClick={startInterview} className="btn-game btn-cute mt-8 px-8 py-4 text-lg">
-                {interviewPassed
-                  ? <><Award size={20} className="mr-2"/> View Result & Claim Certificate</>
-                  : <><PlayCircle size={20} className="mr-2"/> Conduct AI Interview Now</>}
+              <motion.button
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                onClick={() => {
+                  if (certificate) {
+                    setView("certificate");
+                  } else if (interviewPassed || (interviewResult?.percentage || 0) >= PASS_THRESHOLD) {
+                    setView("interview");
+                  } else {
+                    startInterview();
+                  }
+                }}
+                className="btn-game btn-cute mt-8 px-8 py-4 text-lg"
+              >
+                {certificate ? (
+                  <><Award size={20} className="mr-2"/> View & Download Certificate</>
+                ) : (interviewPassed || (interviewResult?.percentage || 0) >= PASS_THRESHOLD) ? (
+                  <><Award size={20} className="mr-2"/> View Result & Claim Certificate</>
+                ) : (
+                  <><PlayCircle size={20} className="mr-2"/> Conduct AI Interview Now</>
+                )}
               </motion.button>
             )}
           </div>
@@ -502,14 +564,19 @@ export default function Certificate({ username = "Student", language = "python",
 
               {interviewResult.percentage >= PASS_THRESHOLD ? (
                 <button onClick={async () => {
+                  if (certificate) {
+                    setView("certificate");
+                    return;
+                  }
                   try {
-                    await apiRequest(`/api/certificate/${language}/issue`, { method: "POST" });
+                    const cert = await apiRequest(`/api/certificate/${language}/issue`, { method: "POST" });
+                    if (cert) setCertificate(cert);
                     setView("certificate");
                   } catch (err) {
                     alert(`Could not issue certificate: ${err.message}`);
                   }
                 }} className="btn-game btn-cute w-full max-w-xs py-4 text-lg mx-auto shadow-gamified">
-                  <Award className="mr-2"/> Claim Certificate
+                  <Award className="mr-2"/> {certificate ? "View & Download Certificate" : "Claim Certificate"}
                 </button>
               ) : (
                 <button onClick={startInterview} className="btn-game btn-secondary w-full max-w-xs py-4 text-lg mx-auto shadow-sm">
@@ -539,34 +606,130 @@ export default function Certificate({ username = "Student", language = "python",
             <div className="absolute -bottom-12 -right-12 w-40 h-40 bg-blue-50 rounded-full" />
             
             <div className="relative z-10">
-              <Award size={64} className="text-[#8B6FE8] mx-auto mb-6" />
-              <div className="text-sm font-black tracking-[0.2em] text-gray-400 uppercase mb-6">Certificate of Completion</div>
-              <div className="w-16 h-1 bg-[#8B6FE8] mx-auto rounded-full mb-8" />
+              <Award size={64} className="text-[#8B6FE8] mx-auto mb-4" />
+              <div className="text-sm font-black tracking-[0.2em] text-gray-400 uppercase mb-2">Certificate of Completion</div>
+              <div className="w-16 h-1 bg-[#8B6FE8] mx-auto rounded-full mb-6" />
               
-              <div className="text-gray-500 font-medium mb-2">This certifies that</div>
-              <div className="font-heading font-black text-5xl text-accent mb-6">{username}</div>
-              <div className="text-gray-500 font-medium mb-6">has successfully completed</div>
+              <div className="text-gray-500 font-medium mb-1">This certifies that</div>
+              <div className="font-heading font-black text-4xl sm:text-5xl text-accent mb-2">
+                {[profile?.firstName, profile?.lastName].filter(Boolean).join(" ") || username}
+              </div>
+
+              {/* Student Details & Timeline Bar */}
+              <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-semibold text-gray-400 mb-6">
+                {email && (
+                  <span className="inline-flex items-center gap-1">
+                    <Mail size={13} className="text-[#8B6FE8]" /> {email}
+                  </span>
+                )}
+                {profile?.contact && (
+                  <span className="inline-flex items-center gap-1">
+                    <Phone size={13} className="text-[#8B6FE8]" /> {profile.contact}
+                  </span>
+                )}
+                {profile?.createdAt && (
+                  <span className="inline-flex items-center gap-1">
+                    <Calendar size={13} className="text-[#8B6FE8]" /> Started: {new Date(profile.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                  </span>
+                )}
+              </div>
+
+              <div className="text-gray-500 font-medium mb-4">has successfully completed all requirements for</div>
               
-              <div className="inline-flex items-center gap-3 bg-blue-50 border-2 border-blue-100 px-6 py-3 rounded-full mb-8 shadow-sm">
+              <div className="inline-flex items-center gap-3 bg-blue-50 border-2 border-blue-100 px-6 py-2.5 rounded-full mb-6 shadow-sm">
                 <span className="text-2xl">{language === 'python' ? '🐍' : '⚡'}</span>
                 <span className="font-bold text-accent text-xl">{language === "python" ? "Python Programming" : "C++ Programming"}</span>
               </div>
               
-              <p className="text-gray-500 font-medium mb-12 max-w-lg mx-auto leading-relaxed">
-                including <strong className="text-accent">20 progressive levels</strong>, <strong className="text-accent">{solvedCount} practice projects</strong>, and a technical interview scoring <strong className="text-[#8B6FE8]">{interviewResult?.percentage}%</strong> on the <strong className="text-accent">CodeMentorX</strong> AI-powered learning platform.
+              <p className="text-gray-500 font-medium mb-6 max-w-lg mx-auto leading-relaxed text-sm sm:text-base">
+                including <strong className="text-accent">20 progressive levels</strong>, <strong className="text-accent">{solvedCount || 5} evaluated projects</strong>, and a comprehensive oral technical interview scoring <strong className="text-[#8B6FE8]">{interviewResult?.percentage || 80}%</strong> on the <strong className="text-accent">CodeMentorX</strong> AI-powered platform.
               </p>
 
-              <div className="flex justify-between items-end border-t-2 border-gray-100 pt-8 text-left">
+              {/* Competency Badges Strip */}
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-md mx-auto mb-8 bg-gray-50 border border-gray-100 p-3 rounded-2xl text-center">
                 <div>
-                  <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Date Issued</div>
-                  <div className="font-bold text-accent">{new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</div>
+                  <div className="text-[10px] uppercase font-bold text-gray-400">Curriculum</div>
+                  <div className="text-xs sm:text-sm font-black text-accent">20/20 Levels</div>
                 </div>
-                <div className="flex gap-2">
-                  {[1,2,3,4,5].map(i => <Star key={i} size={24} className="text-yellow-500 fill-yellow-500" />)}
+                <div className="border-x border-gray-200">
+                  <div className="text-[10px] uppercase font-bold text-gray-400">Projects</div>
+                  <div className="text-xs sm:text-sm font-black text-accent">{solvedCount || 5} Approved</div>
                 </div>
-                <div className="text-right">
-                  <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Issued By</div>
-                  <div className="font-bold text-accent">CodeMentorX</div>
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-gray-400">Oral Interview</div>
+                  <div className="text-xs sm:text-sm font-black text-[#2E9D62]">{interviewResult?.percentage || 80}% (Passed)</div>
+                </div>
+              </div>
+
+              {/* Bottom Row: QR Code, Gold Stars, Issue Details */}
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-6 border-t-2 border-gray-100 pt-6 text-left">
+                {/* QR Code & Scan verification */}
+                <div className="flex items-center gap-3">
+                  {qrCodeUrl ? (
+                    <div className="p-1 bg-white border-2 border-[#8B6FE8]/30 rounded-xl shadow-sm">
+                      <img
+                        src={qrCodeUrl}
+                        alt="Verification QR Code"
+                        className="w-20 h-20 sm:w-24 sm:h-24 object-contain rounded-lg"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400">
+                      <QrIcon size={28} />
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-black uppercase text-accent tracking-wider flex items-center gap-1">
+                      <ShieldCheck size={14} className="text-[#2E9D62]" /> Scan to Verify
+                    </div>
+                    <div className="text-[11px] text-gray-400 font-medium max-w-[150px] leading-tight">
+                      Official digital credential record
+                    </div>
+                    {certificate?.certificateNumber && (
+                      <a
+                        href={`/verify/${certificate.certificateNumber}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-[#8B6FE8] hover:underline pt-0.5"
+                      >
+                        <span>Verify Online</span>
+                        <ExternalLink size={10} />
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                {/* Stars & Seal */}
+                <div className="flex flex-col items-center text-center">
+                  <div className="flex gap-1.5 mb-1.5">
+                    {[1, 2, 3, 4, 5].map(i => (
+                      <Star key={i} size={20} className="text-yellow-500 fill-yellow-500" />
+                    ))}
+                  </div>
+                  <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    Verified Authentic
+                  </div>
+                </div>
+
+                {/* Date & Issuer */}
+                <div className="text-center sm:text-right space-y-1">
+                  <div>
+                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Date Issued</div>
+                    <div className="font-bold text-accent text-sm">
+                      {certificate?.issuedAt
+                        ? new Date(certificate.issuedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+                        : new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Issued By</div>
+                    <div className="font-bold text-accent text-sm">CodeMentorX Platform</div>
+                  </div>
+                  {certificate?.certificateNumber && (
+                    <div className="text-[10px] font-mono text-gray-400 pt-0.5" title={certificate.certificateNumber}>
+                      ID: {certificate.certificateNumber}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
