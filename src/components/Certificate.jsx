@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle, Upload, Lock, Award, PlayCircle, RefreshCw, Star, Printer, XCircle, ShieldCheck, QrCode as QrIcon, ExternalLink, Calendar, Mail, Phone } from "lucide-react";
 import QRCode from "qrcode";
 import { apiRequest } from "../utils/api";
+import codementorLogo from "../assets/codementor-logo.png";
 
 const CONFETTI_COLORS = ["#F49B00", "#25367C", "#2e9d62", "#c62828", "#8e44ad", "#f5c842"];
 
@@ -104,7 +105,8 @@ export default function Certificate({ username = "Student", email = "", profile 
   React.useEffect(() => {
     const certNo = certificate?.certificateNumber;
     if (certNo) {
-      const verifyUrl = `${window.location.origin}/verify/${certNo}`;
+      const frontendBaseUrl = import.meta.env.VITE_APP_URL || "https://codementor-x-frontend.vercel.app";
+      const verifyUrl = `${frontendBaseUrl}/verify/${certNo}`;
       QRCode.toDataURL(verifyUrl, {
         width: 180,
         margin: 1,
@@ -377,13 +379,13 @@ export default function Certificate({ username = "Student", email = "", profile 
 
   // UI LAYOUT HELPERS
   const PageWrapper = ({ children }) => (
-    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex flex-col h-screen bg-background">
+    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex flex-col h-screen bg-background print:h-auto print:bg-white print:overflow-visible">
       {children}
     </motion.div>
   );
 
   const TopBar = ({ title, showBack = true, actionLabel, actionIcon, isSuccess }) => (
-    <div className="h-20 bg-white/70 backdrop-blur-xl border-b border-[#E8EDF5] flex items-center justify-between px-6 shrink-0 z-20">
+    <div className="h-20 bg-white/70 backdrop-blur-xl border-b border-[#E8EDF5] flex items-center justify-between px-6 shrink-0 z-20 print:hidden">
       <div className="flex items-center gap-4">
         {showBack && (
           <button onClick={() => view === 'interview' ? setView('projects') : onBack()} className="p-2 rounded-xl border border-[#E8EDF5] hover:bg-gray-50 text-gray-500 transition-colors">
@@ -594,149 +596,248 @@ export default function Certificate({ username = "Student", email = "", profile 
   if (view === "certificate") return (
     <PageWrapper>
       <TopBar title="Your Certificate" showBack={true} />
-      <div className="flex-1 flex items-center justify-center p-6 bg-background py-12 overflow-y-auto">
-        <div className="w-full max-w-3xl">
-          <motion.div animate={{ y: [-5, 5, -5] }} transition={{ duration: 2, repeat: Infinity }} className="text-center text-4xl mb-8 tracking-[1rem]">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 bg-background overflow-y-auto print:p-0 print:m-0 print:bg-white print:overflow-visible">
+        {/* Print Stylesheet for 100% Isolated Certificate Print */}
+        <style>{`
+          @media print {
+            @page {
+              size: landscape;
+              margin: 0;
+            }
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              height: 100% !important;
+              overflow: hidden !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            body * {
+              visibility: hidden;
+            }
+            #cmx-certificate-card,
+            #cmx-certificate-card * {
+              visibility: visible;
+            }
+            #cmx-certificate-card {
+              position: fixed !important;
+              left: 0 !important;
+              top: 0 !important;
+              width: 100vw !important;
+              height: 100vh !important;
+              max-width: none !important;
+              max-height: none !important;
+              margin: 0 !important;
+              padding: 24px 36px !important;
+              border-radius: 0 !important;
+              box-shadow: none !important;
+              border: 8px solid #25367C !important;
+              page-break-after: avoid !important;
+              page-break-inside: avoid !important;
+              background: #ffffff !important;
+              display: flex !important;
+              flex-direction: column !important;
+              justify-content: space-between !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+          }
+        `}</style>
+
+        <div className="w-full max-w-[920px] mx-auto flex flex-col items-center">
+          <motion.div animate={{ y: [-3, 3, -3] }} transition={{ duration: 2, repeat: Infinity }} className="text-center text-3xl mb-3 tracking-[0.8rem] print:hidden">
             🎉🏆🎓✨🚀
           </motion.div>
 
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[2rem] border-8 border-[#8B6FE8] p-12 text-center shadow-gamified relative overflow-hidden">
-            <ConfettiBurst />
-            <div className="absolute -top-12 -left-12 w-32 h-32 bg-[#FCE9F2] rounded-full" />
-            <div className="absolute -bottom-12 -right-12 w-40 h-40 bg-blue-50 rounded-full" />
-            
-            <div className="relative z-10">
-              <Award size={64} className="text-[#8B6FE8] mx-auto mb-4" />
-              <div className="text-sm font-black tracking-[0.2em] text-gray-400 uppercase mb-2">Certificate of Completion</div>
-              <div className="w-16 h-1 bg-[#8B6FE8] mx-auto rounded-full mb-6" />
-              
-              <div className="text-gray-500 font-medium mb-1">This certifies that</div>
-              <div className="font-heading font-black text-4xl sm:text-5xl text-accent mb-2">
-                {[profile?.firstName, profile?.lastName].filter(Boolean).join(" ") || username}
-              </div>
+          <motion.div
+            id="cmx-certificate-card"
+            initial={{ scale: 0.96, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full bg-gradient-to-b from-white via-[#FCFBF7] to-[#F8F9FD] rounded-2xl border-[6px] border-[#25367C] p-6 sm:p-8 text-center shadow-gamified relative overflow-hidden flex flex-col justify-between"
+            style={{ aspectRatio: "1.42 / 1", minHeight: "560px" }}
+          >
+            <div className="print:hidden">
+              <ConfettiBurst />
+            </div>
 
-              {/* Student Details & Timeline Bar */}
-              <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-semibold text-gray-400 mb-6">
-                {email && (
-                  <span className="inline-flex items-center gap-1">
-                    <Mail size={13} className="text-[#8B6FE8]" /> {email}
-                  </span>
-                )}
-                {profile?.contact && (
-                  <span className="inline-flex items-center gap-1">
-                    <Phone size={13} className="text-[#8B6FE8]" /> {profile.contact}
-                  </span>
-                )}
-                {profile?.createdAt && (
-                  <span className="inline-flex items-center gap-1">
-                    <Calendar size={13} className="text-[#8B6FE8]" /> Started: {new Date(profile.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                  </span>
-                )}
-              </div>
+            {/* Inner Gold Frame */}
+            <div className="absolute inset-2.5 sm:inset-3 border border-[#D4AF37]/60 rounded-xl pointer-events-none" />
+            <div className="absolute inset-3.5 sm:inset-4 border border-[#25367C]/15 rounded-lg pointer-events-none" />
 
-              <div className="text-gray-500 font-medium mb-4">has successfully completed all requirements for</div>
-              
-              <div className="inline-flex items-center gap-3 bg-blue-50 border-2 border-blue-100 px-6 py-2.5 rounded-full mb-6 shadow-sm">
-                <span className="text-2xl">{language === 'python' ? '🐍' : '⚡'}</span>
-                <span className="font-bold text-accent text-xl">{language === "python" ? "Python Programming" : "C++ Programming"}</span>
-              </div>
-              
-              <p className="text-gray-500 font-medium mb-6 max-w-lg mx-auto leading-relaxed text-sm sm:text-base">
-                including <strong className="text-accent">20 progressive levels</strong>, <strong className="text-accent">{solvedCount || 5} evaluated projects</strong>, and a comprehensive oral technical interview scoring <strong className="text-[#8B6FE8]">{interviewResult?.percentage || 80}%</strong> on the <strong className="text-accent">CodeMentorX</strong> AI-powered platform.
-              </p>
+            {/* Corner Decorative Accents */}
+            <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-[#D4AF37] pointer-events-none" />
+            <div className="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-[#D4AF37] pointer-events-none" />
+            <div className="absolute bottom-4 left-4 w-4 h-4 border-b-2 border-l-2 border-[#D4AF37] pointer-events-none" />
+            <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-[#D4AF37] pointer-events-none" />
 
-              {/* Competency Badges Strip */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-md mx-auto mb-8 bg-gray-50 border border-gray-100 p-3 rounded-2xl text-center">
-                <div>
-                  <div className="text-[10px] uppercase font-bold text-gray-400">Curriculum</div>
-                  <div className="text-xs sm:text-sm font-black text-accent">20/20 Levels</div>
+            {/* Subtle Watermark Accents */}
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-[#8B6FE8]/5 rounded-full pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-[#F49B00]/5 rounded-full pointer-events-none" />
+
+            <div className="relative z-10 flex flex-col justify-between h-full">
+              {/* TOP HEADER */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2.5">
+                    <img src={codementorLogo} alt="CodeMentorX" className="w-9 h-9 sm:w-10 sm:h-10 object-contain rounded-lg shadow-xs" />
+                    <div className="text-left leading-tight">
+                      <div className="font-heading font-black text-sm sm:text-base text-[#25367C] tracking-tight">CodeMentor•X</div>
+                      <div className="text-[9px] uppercase tracking-widest text-[#8B6FE8] font-bold">Academy of Computing</div>
+                    </div>
+                  </div>
+
+                  {certificate?.certificateNumber && (
+                    <div className="bg-[#25367C]/5 border border-[#25367C]/15 px-3 py-1 rounded-full text-[10px] font-mono text-[#25367C] font-semibold flex items-center gap-1.5">
+                      <ShieldCheck size={12} className="text-[#2E9D62]" />
+                      <span>ID: {certificate.certificateNumber}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="border-x border-gray-200">
-                  <div className="text-[10px] uppercase font-bold text-gray-400">Projects</div>
-                  <div className="text-xs sm:text-sm font-black text-accent">{solvedCount || 5} Approved</div>
+
+                {/* Title */}
+                <div className="my-2 sm:my-3">
+                  <div className="text-[10px] sm:text-[11px] font-extrabold tracking-[0.25em] text-[#8B6FE8] uppercase">
+                    Official Credential of Achievement
+                  </div>
+                  <h2 className="font-heading font-black text-2xl sm:text-3xl md:text-[34px] text-[#25367C] tracking-tight uppercase mt-0.5">
+                    Certificate of Completion
+                  </h2>
+                  <div className="w-20 h-0.5 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent mx-auto mt-1.5" />
                 </div>
-                <div>
-                  <div className="text-[10px] uppercase font-bold text-gray-400">Oral Interview</div>
-                  <div className="text-xs sm:text-sm font-black text-[#2E9D62]">{interviewResult?.percentage || 80}% (Passed)</div>
+
+                {/* Recipient */}
+                <div className="my-2">
+                  <div className="text-xs uppercase tracking-widest text-gray-400 font-semibold mb-1">
+                    This certifies that
+                  </div>
+                  <div className="font-heading font-black text-3xl sm:text-4xl text-[#1E293B] tracking-tight">
+                    {[profile?.firstName, profile?.lastName].filter(Boolean).join(" ") || username}
+                  </div>
+
+                  {/* Student Details Pill */}
+                  <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-[11px] font-medium text-gray-400 mt-1.5">
+                    {email && (
+                      <span className="inline-flex items-center gap-1">
+                        <Mail size={12} className="text-[#8B6FE8]" /> {email}
+                      </span>
+                    )}
+                    {profile?.contact && (
+                      <span className="inline-flex items-center gap-1">
+                        <Phone size={12} className="text-[#8B6FE8]" /> {profile.contact}
+                      </span>
+                    )}
+                    {profile?.createdAt && (
+                      <span className="inline-flex items-center gap-1">
+                        <Calendar size={12} className="text-[#8B6FE8]" /> Started: {new Date(profile.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Course Track Statement */}
+                <div className="text-xs text-gray-500 font-medium my-2">
+                  has demonstrated technical excellence and fulfilled all graduation requirements for
+                </div>
+
+                <div className="inline-flex items-center gap-2.5 bg-blue-50/80 border border-blue-100 px-5 py-1.5 rounded-full mb-3 shadow-xs">
+                  <span className="text-lg">{language === 'python' ? '🐍' : '⚡'}</span>
+                  <span className="font-bold text-[#25367C] text-sm sm:text-base tracking-wide">
+                    {language === "python" ? "Python Programming Track" : "C++ Programming Track"}
+                  </span>
+                </div>
+
+                {/* Competency Badges Strip */}
+                <div className="grid grid-cols-3 gap-3 max-w-md mx-auto my-2 bg-white/80 border border-gray-200/80 px-3 py-1.5 rounded-xl text-center shadow-xs">
+                  <div>
+                    <div className="text-[9px] uppercase font-bold text-gray-400">Curriculum</div>
+                    <div className="text-xs font-black text-[#25367C]">20/20 Levels</div>
+                  </div>
+                  <div className="border-x border-gray-200">
+                    <div className="text-[9px] uppercase font-bold text-gray-400">Projects</div>
+                    <div className="text-xs font-black text-[#25367C]">{solvedCount || 5} Evaluated</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] uppercase font-bold text-gray-400">AI Defense</div>
+                    <div className="text-xs font-black text-[#2E9D62]">{interviewResult?.percentage || 80}% (Passed)</div>
+                  </div>
                 </div>
               </div>
 
-              {/* Bottom Row: QR Code, Gold Stars, Issue Details */}
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-6 border-t-2 border-gray-100 pt-6 text-left">
+              {/* BOTTOM ROW: QR Code, Seal, Date & Issuer */}
+              <div className="flex flex-row justify-between items-end border-t border-gray-200/80 pt-3 text-left">
                 {/* QR Code & Scan verification */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
                   {qrCodeUrl ? (
-                    <div className="p-1 bg-white border-2 border-[#8B6FE8]/30 rounded-xl shadow-sm">
+                    <div className="p-1 bg-white border border-[#25367C]/20 rounded-lg shadow-xs">
                       <img
                         src={qrCodeUrl}
                         alt="Verification QR Code"
-                        className="w-20 h-20 sm:w-24 sm:h-24 object-contain rounded-lg"
+                        className="w-16 h-16 sm:w-18 sm:h-18 object-contain rounded"
                       />
                     </div>
                   ) : (
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400">
-                      <QrIcon size={28} />
+                    <div className="w-16 h-16 sm:w-18 sm:h-18 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                      <QrIcon size={22} />
                     </div>
                   )}
-                  <div className="space-y-1">
-                    <div className="text-[11px] font-black uppercase text-accent tracking-wider flex items-center gap-1">
-                      <ShieldCheck size={14} className="text-[#2E9D62]" /> Scan to Verify
+                  <div className="space-y-0.5">
+                    <div className="text-[10px] font-black uppercase text-[#25367C] tracking-wider flex items-center gap-1">
+                      <ShieldCheck size={12} className="text-[#2E9D62]" /> Scan to Verify
                     </div>
-                    <div className="text-[11px] text-gray-400 font-medium max-w-[150px] leading-tight">
-                      Official digital credential record
+                    <div className="text-[10px] text-gray-400 font-medium leading-tight max-w-[130px]">
+                      Tamper-proof digital credential
                     </div>
                     {certificate?.certificateNumber && (
                       <a
-                        href={`/verify/${certificate.certificateNumber}`}
+                        href={`${import.meta.env.VITE_APP_URL || "https://codementor-x-frontend.vercel.app"}/verify/${certificate.certificateNumber}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-[#8B6FE8] hover:underline pt-0.5"
+                        className="inline-flex items-center gap-1 text-[10px] font-bold text-[#8B6FE8] hover:underline"
                       >
                         <span>Verify Online</span>
-                        <ExternalLink size={10} />
+                        <ExternalLink size={9} />
                       </a>
                     )}
                   </div>
                 </div>
 
-                {/* Stars & Seal */}
+                {/* Stars & Distinction Seal */}
                 <div className="flex flex-col items-center text-center">
-                  <div className="flex gap-1.5 mb-1.5">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#F49B00] via-[#E28900] to-[#C97700] flex items-center justify-center text-white shadow-sm mb-1">
+                    <Award size={20} />
+                  </div>
+                  <div className="flex gap-1 mb-0.5">
                     {[1, 2, 3, 4, 5].map(i => (
-                      <Star key={i} size={20} className="text-yellow-500 fill-yellow-500" />
+                      <Star key={i} size={13} className="text-yellow-500 fill-yellow-500" />
                     ))}
                   </div>
-                  <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
                     Verified Authentic
                   </div>
                 </div>
 
-                {/* Date & Issuer */}
-                <div className="text-center sm:text-right space-y-1">
+                {/* Date & Issuer Signature */}
+                <div className="text-right space-y-1">
                   <div>
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Date Issued</div>
-                    <div className="font-bold text-accent text-sm">
+                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Date Issued</div>
+                    <div className="font-bold text-[#25367C] text-xs">
                       {certificate?.issuedAt
                         ? new Date(certificate.issuedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
                         : new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Issued By</div>
-                    <div className="font-bold text-accent text-sm">CodeMentorX Platform</div>
+                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Accredited By</div>
+                    <div className="font-bold text-[#25367C] text-xs">CodeMentor•X Board</div>
                   </div>
-                  {certificate?.certificateNumber && (
-                    <div className="text-[10px] font-mono text-gray-400 pt-0.5" title={certificate.certificateNumber}>
-                      ID: {certificate.certificateNumber}
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
           </motion.div>
 
-          <div className="flex gap-4 mt-8 justify-center">
-            <button onClick={() => window.print()} className="btn-game btn-cute px-8 py-3">
+          <div className="flex gap-4 mt-6 justify-center print:hidden">
+            <button onClick={() => window.print()} className="btn-game btn-cute px-8 py-3 shadow-md">
               <Printer size={18} className="mr-2"/> Print / Save PDF
             </button>
             <button onClick={onBack} className="btn-game btn-secondary px-8 py-3">
