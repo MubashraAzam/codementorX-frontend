@@ -75,13 +75,32 @@ export default function App() {
         const user = await apiRequest("/api/auth/me", { method: "GET" });
         applyUser(user);
       } catch (err) {
-        console.error("Session restore failed:", err.message);
+        console.warn("Session restore failed, clearing stale auth token:", err.message);
+        clearToken();
+        setUsername("");
+        setEmail("");
+        setLanguage(null);
+        setProfile({ firstName: "", lastName: "", dob: "", contact: "", avatarUrl: "", createdAt: "" });
       } finally {
         setIsInitializing(false);
       }
     }
     restoreSession();
   }, []);
+
+  // Listen for global auth expiration (e.g. 401 on background API calls)
+  useEffect(() => {
+    function handleAuthExpired() {
+      clearToken();
+      setUsername("");
+      setEmail("");
+      setLanguage(null);
+      setProfile({ firstName: "", lastName: "", dob: "", contact: "", avatarUrl: "", createdAt: "" });
+      navigate("/");
+    }
+    window.addEventListener("cmx_auth_expired", handleAuthExpired);
+    return () => window.removeEventListener("cmx_auth_expired", handleAuthExpired);
+  }, [navigate]);
 
   useEffect(() => {
     async function fetchProgress() {
@@ -185,7 +204,7 @@ export default function App() {
   }
 
   const ProtectedRoute = ({ children }) => {
-    return getToken() ? children : <Navigate to="/" />;
+    return getToken() ? children : <Navigate to="/" replace />;
   };
 
   return (
@@ -196,7 +215,11 @@ export default function App() {
           <Route 
             path="/" 
             element={
-              getToken() ? <Navigate to="/dashboard" /> : <CodeMentorLanding onLogin={handleLogin} onRegister={handleRegister} />
+              getToken() ? (
+                language ? <Navigate to="/dashboard" replace /> : <Navigate to="/choose-path" replace />
+              ) : (
+                <CodeMentorLanding onLogin={handleLogin} onRegister={handleRegister} />
+              )
             } 
           />
           <Route 

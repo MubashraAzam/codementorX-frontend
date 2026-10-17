@@ -16,15 +16,49 @@
 
 const BASE_URL = import.meta.env.VITE_API_URL || "https://codementorx-backend.onrender.com";
 
-// ── TOKEN STORAGE ────────────────────────────────────────────────────────
-// Stored in memory + localStorage so the user stays logged in on refresh.
+// ── TOKEN STORAGE & EXPIRATION ───────────────────────────────────────────
+// Stored in localStorage with automatic expiration checking (3 days default).
+
+export function parseJwt(token) {
+  if (!token || typeof token !== "string") return null;
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
+}
+
+export function isTokenExpired(token) {
+  if (!token) return true;
+  const decoded = parseJwt(token);
+  if (!decoded || !decoded.exp) return true;
+  // exp is in seconds, compare with Date.now() in ms
+  return decoded.exp * 1000 <= Date.now();
+}
 
 export function saveToken(token) {
+  if (!token) return;
   localStorage.setItem("cmx_token", token);
 }
 
 export function getToken() {
-  return localStorage.getItem("cmx_token");
+  const token = localStorage.getItem("cmx_token");
+  if (!token) return null;
+  if (isTokenExpired(token)) {
+    clearToken();
+    return null;
+  }
+  return token;
 }
 
 export function clearToken() {
@@ -55,12 +89,22 @@ export async function apiRequest(path, { method = "GET", body, auth = true } = {
   }
 
   if (!res.ok) {
+    if (res.status === 401 && auth) {
+      clearToken();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("cmx_auth_expired", { detail: { path } }));
+      }
+    }
+
     // Backend sends { message: "..." } or { errors: [...] } on failure
     const message =
       data?.message ||
       data?.errors?.[0]?.msg ||
       `Request failed with status ${res.status}`;
-    throw new Error(message);
+    const err = new Error(message);
+    err.status = res.status;
+    err.data = data;
+    throw err;
   }
 
   return data;
