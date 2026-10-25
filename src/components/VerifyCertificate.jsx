@@ -20,6 +20,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { apiRequest } from "../utils/api";
+import { trackMeta } from "../utils/tracks";
 
 export default function VerifyCertificate() {
   const { certId } = useParams();
@@ -35,28 +36,10 @@ export default function VerifyCertificate() {
         const data = await apiRequest(`/api/certificate/verify/${certId}`, { method: "GET", auth: false });
         setCertData(data);
       } catch (err) {
-        // If the public verification endpoint is not yet reachable on a deployed backend,
-        // provide fallback presentation for standard CodeMentorX certificate format
-        console.warn("Verification API returned error, checking format fallback:", err.message);
-        if (certId && certId.startsWith("CMX-")) {
-          setCertData({
-            valid: true,
-            certificateNumber: certId,
-            language: "python",
-            projectsSolved: 5,
-            interviewScore: 80,
-            issuedAt: "2026-07-24T18:58:02.342Z",
-            student: {
-              name: "Mubashra Azam",
-              username: "Mubashra Azam",
-              email: "mushiii1103@gmail.com",
-              contact: "+92 3347429296",
-              startDate: "2026-07-13T11:14:08.812Z",
-            },
-          });
-        } else {
-          setError(err.message || "Certificate could not be verified");
-        }
+        // Never show a certificate the server did not confirm. (A previous fallback
+        // displayed a hard-coded "valid" certificate for any ID starting with CMX-,
+        // which let anyone fake a credential.)
+        setError(err.message || "Certificate could not be verified");
       } finally {
         setLoading(false);
       }
@@ -95,8 +78,8 @@ export default function VerifyCertificate() {
   }
 
   const { student, language, projectsSolved, interviewScore, issuedAt, certificateNumber } = certData;
-  const langLabel = language === "python" ? "Python Programming" : "C++ Programming";
-  const langIcon = language === "python" ? "🐍" : "⚡";
+  const langLabel = `${trackMeta(language).label} Programming`;
+  const langIcon = trackMeta(language).icon;
 
   const formattedIssued = issuedAt
     ? new Date(issuedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })

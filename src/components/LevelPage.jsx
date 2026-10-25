@@ -7,6 +7,13 @@ import {
 } from "lucide-react";
 import { apiRequest } from "../utils/api";
 import { formatAIMarkdown } from "../utils/aiMarkdown";
+import { trackMeta } from "../utils/tracks";
+
+const QUESTION_TYPE = {
+  concept: { label: "Concept", cls: "bg-[#EEF3FF] text-[#4F6BD8]" },
+  output:  { label: "Predict the output", cls: "bg-[#E7F6EE] text-[#2E9D62]" },
+  debug:   { label: "Find the bug", cls: "bg-[#FDEDEE] text-[#C62828]" },
+};
 
 const CONFETTI_COLORS = ["#F49B00", "#25367C", "#2e9d62", "#c62828", "#8e44ad", "#f5c842"];
 
@@ -52,51 +59,7 @@ function FloatingXP({ xp, x, y, onComplete }) {
   );
 }
 
-const PYTHON_LEVELS = [
-  { title: "Hello World & Setup",   cat: "beginner",     sub: "print · comments · indentation" },
-  { title: "Variables & Types",     cat: "beginner",     sub: "int · float · string · bool · type()" },
-  { title: "Input & Output",        cat: "beginner",     sub: "input() · output · f-strings" },
-  { title: "Conditions",            cat: "beginner",     sub: "if · elif · else · comparison operators" },
-  { title: "Loops",                 cat: "beginner",     sub: "for · while · break · continue · range()" },
-  { title: "Functions",             cat: "intermediate", sub: "def · parameters · return · scope" },
-  { title: "Lists & Arrays",        cat: "intermediate", sub: "list creation · indexing · slicing · methods" },
-  { title: "Strings",               cat: "intermediate", sub: "string methods · slicing · formatting" },
-  { title: "Dictionaries",          cat: "intermediate", sub: "key-value pairs · dict methods · iteration" },
-  { title: "File Handling",         cat: "intermediate", sub: "open() · read · write · with statement" },
-  { title: "Error Handling",        cat: "intermediate", sub: "try · except · finally · custom exceptions" },
-  { title: "OOP — Classes",         cat: "intermediate", sub: "class · __init__ · self · methods" },
-  { title: "OOP — Inheritance",     cat: "intermediate", sub: "inheritance · super() · polymorphism" },
-  { title: "Modules",               cat: "intermediate", sub: "import · pip · os · math · random" },
-  { title: "Problem Solving I",     cat: "intermediate", sub: "algorithms · Big-O · common patterns" },
-  { title: "Recursion",             cat: "advanced",     sub: "recursive functions · base case · call stack" },
-  { title: "Data Structures",       cat: "advanced",     sub: "stacks · queues · linked lists" },
-  { title: "Algorithms",            cat: "advanced",     sub: "sorting · searching · binary search" },
-  { title: "Mini Project",          cat: "advanced",     sub: "design · implementation · testing" },
-  { title: "Final Challenge",       cat: "advanced",     sub: "capstone problems · review · certification" },
-];
-
-const CPP_LEVELS = [
-  { title: "Setup & First Program", cat: "beginner",     sub: "cout · cin · #include · main()" },
-  { title: "Variables & Types",     cat: "beginner",     sub: "int · float · string · bool · auto" },
-  { title: "Input & Output",        cat: "beginner",     sub: "cin · cout · endl · formatting" },
-  { title: "Conditions",            cat: "beginner",     sub: "if · else if · else · switch" },
-  { title: "Loops",                 cat: "beginner",     sub: "for · while · do-while · break · continue" },
-  { title: "Functions",             cat: "intermediate", sub: "declaration · parameters · return · overloading" },
-  { title: "Arrays",                cat: "intermediate", sub: "1D/2D arrays · indexing · sorting" },
-  { title: "Strings",               cat: "intermediate", sub: "string class · methods · c-strings" },
-  { title: "Pointers",              cat: "intermediate", sub: "& · * · pointer arithmetic · references" },
-  { title: "File Handling",         cat: "intermediate", sub: "fstream · ifstream · ofstream · modes" },
-  { title: "Error Handling",        cat: "intermediate", sub: "try · catch · throw · exception classes" },
-  { title: "OOP — Classes",         cat: "intermediate", sub: "class · constructor · destructor · access specifiers" },
-  { title: "OOP — Inheritance",     cat: "intermediate", sub: "inheritance · virtual · polymorphism · override" },
-  { title: "Templates",             cat: "intermediate", sub: "function templates · class templates · generic programming" },
-  { title: "STL",                   cat: "intermediate", sub: "vector · map · set · algorithms · iterators" },
-  { title: "Recursion",             cat: "advanced",     sub: "recursive functions · base case · memoization" },
-  { title: "Data Structures",       cat: "advanced",     sub: "linked list · stack · queue · tree" },
-  { title: "Algorithms",            cat: "advanced",     sub: "sorting · searching · complexity · dynamic programming" },
-  { title: "Mini Project",          cat: "advanced",     sub: "design · implementation · testing · documentation" },
-  { title: "Final Challenge",       cat: "advanced",     sub: "capstone problems · review · certification" },
-];
+// Levels now come from the backend curriculum (Module 2.1) via the `levels` prop.
 
 async function callAI(prompt) {
   try {
@@ -115,12 +78,13 @@ export default function LevelPage({
   language = "python",
   levelIndex = 3,
   progress = { doneLevels: [0, 1, 2], stars: { 0: 3, 1: 2, 2: 3 }, currentLevel: 3 },
+  levels = [],
   onBack,
   onComplete,
   onNavigate,
 }) {
-  const levels = language === "python" ? PYTHON_LEVELS : CPP_LEVELS;
-  const langLabel = language === "python" ? "🐍 Python" : "⚡ C++";
+  const meta = trackMeta(language);
+  const langLabel = `${meta.icon} ${meta.label}`;
 
   const [currentIdx, setCurrentIdx]   = useState(levelIndex);
   const [activeTab, setActiveTab]     = useState("lesson");
@@ -164,7 +128,9 @@ export default function LevelPage({
     progress.stars[levelIndex] || 0
   );
 
-  const level = levels[currentIdx];
+  const level = levels[currentIdx] || { title: `Level ${currentIdx + 1}`, sub: "" };
+  // Module 2.3 — a level opens only after the previous one is completed.
+  const isLocked = currentIdx > 0 && !progress.doneLevels.includes(currentIdx - 1);
   const isDone = progress.doneLevels.includes(currentIdx);
   const pct = Math.round(((currentIdx + 1) / 20) * 100);
 
@@ -192,6 +158,7 @@ export default function LevelPage({
   }, [currentIdx]);
 
   useEffect(() => {
+    if (isLocked) return;
     if (activeTab === "lesson" && !lessonContent && !lessonLoading) loadLesson();
     if (activeTab === "practice" && !practiceContent && !practiceLoading) loadPractice();
     if (activeTab === "quiz" && !quizData && !quizLoading) loadQuiz();
@@ -199,7 +166,7 @@ export default function LevelPage({
 
   async function loadLesson() {
     setLessonLoading(true);
-    const prompt = `You are an expert ${language === "python" ? "Python" : "C++"} tutor. Create a comprehensive lesson on "${level.title}" covering: ${level.sub}. Include: clear explanation, key concepts, syntax examples with code blocks using \`\`\`${language === "python" ? "python" : "cpp"} and \`\`\`, and a summary. ${uiLang === "Urdu" ? "Include brief Urdu explanations after key points." : ""}`;
+    const prompt = `You are an expert ${meta.label} tutor. Create a comprehensive lesson on "${level.title}" covering: ${level.sub}. Include: clear explanation, key concepts, syntax examples with code blocks using \`\`\`${meta.codeLang} and \`\`\`, and a summary. ${uiLang === "Urdu" ? "Include brief Urdu explanations after key points." : ""}`;
     const text = await callAI(prompt);
     setLessonContent(text);
     setLessonLoading(false);
@@ -207,7 +174,7 @@ export default function LevelPage({
 
   async function loadPractice() {
     setPracticeLoading(true);
-    const prompt = `Create 3 practice exercises for ${language === "python" ? "Python" : "C++"} "${level.title}" (${level.sub}). For each: give a numbered title, problem description, and expected output. Do NOT give the solution. ${uiLang === "Urdu" ? "Include Urdu instructions." : ""}`;
+    const prompt = `Create 3 practice exercises for ${meta.label} "${level.title}" (${level.sub}). For each: give a numbered title, problem description, and expected output. Do NOT give the solution. ${uiLang === "Urdu" ? "Include Urdu instructions." : ""}`;
     const text = await callAI(prompt);
     setPracticeContent(text);
     setPracticeLoading(false);
@@ -238,7 +205,7 @@ export default function LevelPage({
 
   async function getExtraExample() {
     setExtraLoading(true);
-    const prompt = `Give one additional creative real-world ${language === "python" ? "Python" : "C++"} example for "${level.title}". Use a code block. Keep it concise. ${uiLang === "Urdu" ? "Add Urdu explanation." : ""}`;
+    const prompt = `Give one additional creative real-world ${meta.label} example for "${level.title}". Use a code block. Keep it concise. ${uiLang === "Urdu" ? "Add Urdu explanation." : ""}`;
     const text = await callAI(prompt);
     setExtraExample(text);
     setExtraLoading(false);
@@ -251,7 +218,7 @@ export default function LevelPage({
     }
     setHintOpen(true);
     setGeneralHintLoading(true);
-    const prompt = `Give a short, encouraging hint for a student learning ${language === "python" ? "Python" : "C++"} "${level.title}". Do NOT give code solutions. Keep it to 2-3 sentences.`;
+    const prompt = `Give a short, encouraging hint for a student learning ${meta.label} "${level.title}". Do NOT give code solutions. Keep it to 2-3 sentences.`;
     const text = await callAI(prompt);
     setGeneralHint(text);
     setGeneralHintLoading(false);
@@ -272,7 +239,7 @@ export default function LevelPage({
     setQuizHintLoading(h => ({ ...h, [step]: true }));
     const q = quizData[step];
     const optionList = q.opts.map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join("; ");
-    const prompt = `A student is answering this ${language === "python" ? "Python" : "C++"} multiple-choice question about "${level.title}": "${q.q}" Options: ${optionList}. Give a short 1-2 sentence hint that nudges them toward the right reasoning. Do NOT reveal or name the correct answer.`;
+    const prompt = `A student is answering this ${meta.label} multiple-choice question about "${level.title}": "${q.q}"${q.code ? ` Code:\n${q.code}\n` : ""} Options: ${optionList}. Give a short 1-2 sentence hint that nudges them toward the right reasoning. Do NOT reveal or name the correct answer.`;
     const text = await callAI(prompt);
     setQuizHints(h => ({ ...h, [step]: text }));
     setQuizHintLoading(h => ({ ...h, [step]: false }));
@@ -280,7 +247,7 @@ export default function LevelPage({
 
   async function getPracticeHint(idx) {
     setHintLoading(h => ({ ...h, [idx]: true }));
-    const prompt = `Give a helpful step-by-step hint for practice exercise ${idx + 1} about ${language === "python" ? "Python" : "C++"} "${level.title}". Do NOT give the full solution — just guide the student.`;
+    const prompt = `Give a helpful step-by-step hint for practice exercise ${idx + 1} about ${meta.label} "${level.title}". Do NOT give the full solution — just guide the student.`;
     const text = await callAI(prompt);
     setPracticeHints(h => ({ ...h, [idx]: text }));
     setHintLoading(h => ({ ...h, [idx]: false }));
@@ -288,7 +255,7 @@ export default function LevelPage({
 
   async function getPracticeSolution(idx) {
     setSolLoading(s => ({ ...s, [idx]: true }));
-    const prompt = `Provide the complete solution for practice exercise ${idx + 1} about ${language === "python" ? "Python" : "C++"} "${level.title}" with explanation.`;
+    const prompt = `Provide the complete solution for practice exercise ${idx + 1} about ${meta.label} "${level.title}" with explanation.`;
     const text = await callAI(prompt);
     setPracticeSolutions(s => ({ ...s, [idx]: text }));
     setSolLoading(s => ({ ...s, [idx]: false }));
@@ -400,7 +367,7 @@ export default function LevelPage({
       </div>
 
       {/* TABS */}
-      <div className="flex bg-white/70 backdrop-blur-xl border-b border-[#ECE7F4] px-6 gap-6 pt-2 shrink-0">
+      <div className={`${isLocked ? "hidden" : "flex"} bg-white/70 backdrop-blur-xl border-b border-[#ECE7F4] px-6 gap-6 pt-2 shrink-0`}>
         {[
           { id: "lesson", label: "Lesson", icon: <BookOpen size={18}/> },
           { id: "practice", label: "Practice", icon: <PenTool size={18}/> },
@@ -419,6 +386,17 @@ export default function LevelPage({
       {/* CONTENT AREA */}
       <div className="flex-1 overflow-y-auto p-6 md:p-10 relative">
         <div className="max-w-4xl mx-auto space-y-6">
+          {isLocked && (
+            <div className="bg-white rounded-3xl p-10 border border-[#ECE7F4] text-center">
+              <div className="w-16 h-16 mx-auto rounded-2xl bg-gray-100 text-gray-400 flex items-center justify-center"><Lock size={30} /></div>
+              <h2 className="font-heading font-black text-2xl text-accent mt-6">Level {currentIdx + 1} is locked</h2>
+              <p className="text-gray-500 font-medium mt-2">Pass the Level {currentIdx} assessment to unlock this level.</p>
+              <button className="btn-game btn-cute mt-8 inline-flex" onClick={() => navigateLevel(-1)}>
+                Go to Level {currentIdx} <ChevronRight size={18}/>
+              </button>
+            </div>
+          )}
+          {!isLocked && (
           <AnimatePresence mode="wait">
             
             {/* LESSON TAB */}
@@ -541,7 +519,20 @@ export default function LevelPage({
                       </div>
                     </div>
 
-                    <p className="text-lg font-medium text-accent mb-8">{quizData[quizStep].q}</p>
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      {QUESTION_TYPE[quizData[quizStep].type] && (
+                        <span className={`text-[11px] font-black uppercase tracking-wide px-2.5 py-1 rounded-lg ${QUESTION_TYPE[quizData[quizStep].type].cls}`}>
+                          {QUESTION_TYPE[quizData[quizStep].type].label}
+                        </span>
+                      )}
+                      {quizData[quizStep].topic && (
+                        <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-gray-100 text-gray-500">{quizData[quizStep].topic}</span>
+                      )}
+                    </div>
+                    <p className={`text-lg font-medium text-accent ${quizData[quizStep].code ? "mb-4" : "mb-8"}`}>{quizData[quizStep].q}</p>
+                    {quizData[quizStep].code && (
+                      <pre className="mb-8 bg-[#1E2235] text-[#E6E9F5] rounded-2xl p-5 text-sm leading-relaxed overflow-x-auto font-mono whitespace-pre"><code>{quizData[quizStep].code}</code></pre>
+                    )}
 
                     <div className="space-y-3">
                       {quizData[quizStep].opts.map((opt, i) => {
@@ -609,8 +600,8 @@ export default function LevelPage({
 
                 {quizDone && quizData && (
                   <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-10 border-2 border-[#8B6FE8] shadow-gamified text-center relative overflow-hidden">
-                    {earnedStars >= 2 && <ConfettiBurst />}
-                    <div className="text-6xl mb-6">{["💪", "⭐", "⭐⭐", "⭐⭐⭐"][earnedStars]}</div>
+                    {(quizResult?.stars || 0) >= 2 && <ConfettiBurst />}
+                    <div className="text-6xl mb-6">{["💪", "⭐", "⭐⭐", "⭐⭐⭐"][quizResult?.stars || 0]}</div>
                     <h2 className="font-heading font-black text-4xl text-accent mb-2">{finalScore}% Score</h2>
                     <p className="font-bold text-gray-500 mb-6">{correctCount} out of {quizData.length} correct</p>
                     
@@ -620,6 +611,8 @@ export default function LevelPage({
                         : finalScore >= 50 ? "You passed — review the lesson for a stronger grip."
                         : "Keep going! Review the lesson and try again."}
                     </p>
+
+                    {quizResult?.report && <AssessmentReport report={quizResult.report} />}
 
                     <div className="flex flex-wrap justify-center gap-4">
                       <button className="btn-game btn-secondary" onClick={loadQuiz}><RefreshCw size={18}/> New Quiz</button>
@@ -633,6 +626,7 @@ export default function LevelPage({
             )}
 
           </AnimatePresence>
+          )}
         </div>
       </div>
 
@@ -729,6 +723,51 @@ function VoiceBar({ onSpeak, uiLang, onLangChange, level, language }) {
           <div className="absolute -top-3 left-4 bg-[#8B6FE8] text-white text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg shadow-sm">AI Response</div>
           <div className="max-w-none pt-1" dangerouslySetInnerHTML={{ __html: formatAIMarkdown(answer) }} />
         </motion.div>
+      )}
+    </div>
+  );
+}
+
+// Module 2.2 — topic-wise performance report shown after each assessment.
+function AssessmentReport({ report }) {
+  const types = Object.entries(report.byType || {});
+  const topics = Object.entries(report.byTopic || {});
+  const pct = (v) => Math.round((v.correct / v.total) * 100);
+  const bar = (v) => (pct(v) >= 70 ? "#2E9D62" : pct(v) >= 50 ? "#F49B00" : "#E5484D");
+  return (
+    <div className="text-left bg-[#FAF8FE] border border-[#ECE7F4] rounded-2xl p-6 mb-8">
+      <h3 className="font-heading font-black text-accent mb-4">Your performance report</h3>
+      <div className="grid sm:grid-cols-2 gap-6">
+        <div>
+          <div className="text-xs font-black uppercase tracking-wide text-gray-400 mb-3">By question type</div>
+          <div className="space-y-3">
+            {types.map(([key, v]) => (
+              <div key={key}>
+                <div className="flex justify-between text-sm font-bold text-accent mb-1"><span>{v.label}</span><span>{v.correct}/{v.total}</span></div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${pct(v)}%`, background: bar(v) }} /></div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="text-xs font-black uppercase tracking-wide text-gray-400 mb-3">By topic</div>
+          <div className="space-y-3">
+            {topics.map(([topic, v]) => (
+              <div key={topic}>
+                <div className="flex justify-between text-sm font-bold text-accent mb-1"><span className="truncate pr-2">{topic}</span><span>{v.correct}/{v.total}</span></div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${pct(v)}%`, background: bar(v) }} /></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      {report.weakTopics?.length > 0 && (
+        <div className="mt-5 text-sm font-medium text-accent">
+          <span className="font-bold">Revise next: </span>
+          {report.weakTopics.map((t) => (
+            <span key={t} className="inline-block mr-2 mt-1 px-2.5 py-1 rounded-lg bg-[#FDEDEE] text-[#C62828] font-bold text-xs">{t}</span>
+          ))}
+        </div>
       )}
     </div>
   );

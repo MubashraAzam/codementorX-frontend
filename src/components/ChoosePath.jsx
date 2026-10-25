@@ -1,19 +1,25 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiRequest } from "../utils/api";
+import { TRACK_ORDER, TRACK_META } from "../utils/tracks";
 
 /**
  * ChoosePath
  * ----------
  * Shown after successful login or registration.
- * The user picks Python or C++ track, then confirms to proceed.
+ * The user picks one of the five tracks (Module 2.1), then confirms to proceed.
+ * A sixth card opens the AI Roadmap Generator for other languages (Module 2.4).
  *
  * Props:
  *   username        string  — displayed in the welcome pill
- *   onSelectPath    fn      — called with "python" | "cpp" when user confirms
+ *   onSelectPath    fn      — called with the updated user after enrolling
  */
 export default function ChoosePath({ username = "Student", enrollments = [], onSelectPath, onBack }) {
   const [step, setStep] = useState(0);
-  const [selected, setSelected] = useState(null);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const preset = searchParams.get("track");
+  const [selected, setSelected] = useState(TRACK_META[preset] ? preset : null);
   const [toast, setToast] = useState({ show: false, msg: "" });
   const [confirming, setConfirming] = useState(false);
 
@@ -34,10 +40,8 @@ export default function ChoosePath({ username = "Student", enrollments = [], onS
 
   function handleSelect(lang) {
     setSelected(lang);
-    showToast(lang === "python"
-      ? "🐍 Python selected! Click Start Learning to continue."
-      : "⚡ C++ selected! Click Start Learning to continue."
-    );
+    const meta = TRACK_META[lang];
+    showToast(`${meta.icon} ${meta.label} selected! Click Start Learning to continue.`);
   }
 
   async function handleConfirm() {
@@ -109,51 +113,51 @@ export default function ChoosePath({ username = "Student", enrollments = [], onS
 
         {/* CARDS */}
         <div className="cp-cards-row">
-          {/* PYTHON */}
-          <div
-            className={`cp-path-card python ${step >= 3 ? "anim" : ""} ${selected === "python" ? "selected" : ""}`}
-            onClick={() => handleSelect("python")}
-          >
-            <div className="cp-card-badge">🏆 Most Popular</div>
-            <span className="cp-card-icon">🐍</span>
-            <div className="cp-card-lang">Python</div>
-            <div className="cp-card-tagline">The perfect first language — readable, powerful, and in demand everywhere.</div>
-            <div className="cp-levels-strip">
-              {Array.from({ length: 20 }).map((_, i) => <div key={i} className="cp-lvl" />)}
-            </div>
-            <ul className="cp-features">
-              <li><span className="cp-feat-dot">✓</span>20 progressive levels</li>
-              <li><span className="cp-feat-dot">✓</span>AI-generated lessons &amp; quizzes</li>
-              <li><span className="cp-feat-dot">✓</span>Data science, web &amp; AI projects</li>
-              <li><span className="cp-feat-dot">✓</span>Completion certificate</li>
-            </ul>
-            <button className="cp-card-btn">
-              {selected === "python" ? "✓ Python Selected" : enrollments.includes("python") ? "✓ Enrolled — Continue →" : "Start Python Journey →"}
-            </button>
-          </div>
+          {TRACK_ORDER.map((lang, i) => {
+            const meta = TRACK_META[lang];
+            return (
+              <div
+                key={lang}
+                className={`cp-path-card ${lang} ${step >= 3 ? "anim" : ""} ${selected === lang ? "selected" : ""}`}
+                onClick={() => handleSelect(lang)}
+                style={{ animationDelay: `${i * 0.12}s` }}
+              >
+                <div className="cp-card-badge">{meta.badge}</div>
+                <span className="cp-card-icon">{meta.icon}</span>
+                <div className="cp-card-lang">{meta.label}</div>
+                <div className="cp-card-tagline">{meta.tagline}</div>
+                <div className="cp-levels-strip">
+                  {Array.from({ length: 20 }).map((_, j) => <div key={j} className="cp-lvl" />)}
+                </div>
+                <ul className="cp-features">
+                  <li><span className="cp-feat-dot">✓</span>20 progressive levels</li>
+                  <li><span className="cp-feat-dot">✓</span>AI lessons &amp; 10-question assessments</li>
+                  <li><span className="cp-feat-dot">✓</span>{meta.focus}</li>
+                  <li><span className="cp-feat-dot">✓</span>Completion certificate</li>
+                </ul>
+                <button className="cp-card-btn">
+                  {selected === lang ? `✓ ${meta.label} Selected` : enrollments.includes(lang) ? "✓ Enrolled — Continue →" : `Start ${meta.label} Journey →`}
+                </button>
+              </div>
+            );
+          })}
 
-          {/* C++ */}
+          {/* AI ROADMAP GENERATOR — Module 2.4 */}
           <div
-            className={`cp-path-card cpp ${step >= 3 ? "anim" : ""} ${selected === "cpp" ? "selected" : ""}`}
-            onClick={() => handleSelect("cpp")}
-            style={{ animationDelay: "0.18s" }}
+            className={`cp-path-card roadmap ${step >= 3 ? "anim" : ""}`}
+            onClick={() => navigate("/roadmaps")}
+            style={{ animationDelay: `${TRACK_ORDER.length * 0.12}s` }}
           >
-            <div className="cp-card-badge">⚡ High Performance</div>
-            <span className="cp-card-icon">⚡</span>
-            <div className="cp-card-lang">C++</div>
-            <div className="cp-card-tagline">Master speed and control — the language behind games, systems, and OS.</div>
-            <div className="cp-levels-strip">
-              {Array.from({ length: 20 }).map((_, i) => <div key={i} className="cp-lvl" />)}
-            </div>
+            <div className="cp-card-badge">🤖 AI Powered</div>
+            <span className="cp-card-icon">🧭</span>
+            <div className="cp-card-lang">Other language?</div>
+            <div className="cp-card-tagline">Want Go, Kotlin, SQL or anything else? Get a personalised AI learning roadmap.</div>
             <ul className="cp-features">
-              <li><span className="cp-feat-dot">✓</span>20 progressive levels</li>
-              <li><span className="cp-feat-dot">✓</span>AI-generated lessons &amp; quizzes</li>
-              <li><span className="cp-feat-dot">✓</span>Systems, games &amp; OS projects</li>
-              <li><span className="cp-feat-dot">✓</span>Completion certificate</li>
+              <li><span className="cp-feat-dot">✓</span>Concepts in the right order</li>
+              <li><span className="cp-feat-dot">✓</span>Exercises &amp; debugging practice</li>
+              <li><span className="cp-feat-dot">✓</span>Stage projects &amp; a capstone</li>
             </ul>
-            <button className="cp-card-btn">
-              {selected === "cpp" ? "✓ C++ Selected" : enrollments.includes("cpp") ? "✓ Enrolled — Continue →" : "Start C++ Journey →"}
-            </button>
+            <button className="cp-card-btn">Generate a Roadmap →</button>
           </div>
         </div>
       </div>
@@ -287,6 +291,10 @@ const css = `
 .cp-path-card:hover{transform:translateY(-10px) scale(1.025)!important;box-shadow:0 24px 48px rgba(0,0,0,.18)}
 .cp-path-card.python{background:linear-gradient(145deg,#1a4a7a,#1e5fa3,#2471c8)}
 .cp-path-card.cpp{background:linear-gradient(145deg,#003d78,#00509e,#0067c8)}
+.cp-path-card.java{background:linear-gradient(145deg,#7a2e0e,#b5451b,#e76f2e)}
+.cp-path-card.javascript{background:linear-gradient(145deg,#8a6d00,#c79a00,#e8b923)}
+.cp-path-card.react{background:linear-gradient(145deg,#0b4f63,#0e7490,#14a3c7)}
+.cp-path-card.roadmap{background:linear-gradient(145deg,#3d2a7a,#5b3fb5,#8b6fe8)}
 .cp-path-card::before{content:'';position:absolute;top:-40px;right:-40px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.07);pointer-events:none}
 .cp-path-card::after{content:'';position:absolute;bottom:-30px;left:-30px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,.05);pointer-events:none}
 .cp-path-card.selected{transform:translateY(-14px) scale(1.035)!important;box-shadow:0 28px 56px rgba(0,0,0,.22)}

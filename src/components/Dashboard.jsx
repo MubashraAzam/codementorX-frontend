@@ -5,8 +5,9 @@ import {
   ChevronRight, Zap, Target, Lock, PlayCircle, CheckCircle,
   Crown, LayoutDashboard, Menu, X, Rocket, LogOut, Flame,
   Camera, Trash2, User as UserIcon, Mail, Phone, Calendar,
-  ShieldCheck, Eye, EyeOff, BookOpen, Plus
+  ShieldCheck, Eye, EyeOff, BookOpen, Plus, Compass
 } from "lucide-react";
+import { trackMeta } from "../utils/tracks";
 import Certificate from "./Certificate";
 import { apiRequest } from "../utils/api";
 
@@ -51,51 +52,7 @@ function useStreak(username) {
   return streak;
 }
 
-const PYTHON_LEVELS = [
-  { title: "Hello World & Setup", cat: "beginner" },
-  { title: "Variables & Types", cat: "beginner" },
-  { title: "Input & Output", cat: "beginner" },
-  { title: "Conditions", cat: "beginner" },
-  { title: "Loops", cat: "beginner" },
-  { title: "Functions", cat: "intermediate" },
-  { title: "Lists & Arrays", cat: "intermediate" },
-  { title: "Strings", cat: "intermediate" },
-  { title: "Dictionaries", cat: "intermediate" },
-  { title: "File Handling", cat: "intermediate" },
-  { title: "Error Handling", cat: "intermediate" },
-  { title: "OOP — Classes", cat: "intermediate" },
-  { title: "OOP — Inheritance", cat: "intermediate" },
-  { title: "Modules", cat: "intermediate" },
-  { title: "Problem Solving I", cat: "intermediate" },
-  { title: "Recursion", cat: "advanced" },
-  { title: "Data Structures", cat: "advanced" },
-  { title: "Algorithms", cat: "advanced" },
-  { title: "Mini Project", cat: "advanced" },
-  { title: "Final Challenge", cat: "advanced" },
-];
-
-const CPP_LEVELS = [
-  { title: "Setup & First Program", cat: "beginner" },
-  { title: "Variables & Types", cat: "beginner" },
-  { title: "Input & Output", cat: "beginner" },
-  { title: "Conditions", cat: "beginner" },
-  { title: "Loops", cat: "beginner" },
-  { title: "Functions", cat: "intermediate" },
-  { title: "Arrays", cat: "intermediate" },
-  { title: "Strings", cat: "intermediate" },
-  { title: "Pointers", cat: "intermediate" },
-  { title: "File Handling", cat: "intermediate" },
-  { title: "Error Handling", cat: "intermediate" },
-  { title: "OOP — Classes", cat: "intermediate" },
-  { title: "OOP — Inheritance", cat: "intermediate" },
-  { title: "Templates", cat: "intermediate" },
-  { title: "STL", cat: "intermediate" },
-  { title: "Recursion", cat: "advanced" },
-  { title: "Data Structures", cat: "advanced" },
-  { title: "Algorithms", cat: "advanced" },
-  { title: "Mini Project", cat: "advanced" },
-  { title: "Final Challenge", cat: "advanced" },
-];
+// Levels now come from the backend curriculum (Module 2.1) via the `curriculum` prop.
 
 const BADGES = [
   { icon: <Rocket size={17} />, name: "First Step", accent: "info" },
@@ -183,6 +140,8 @@ export default function Dashboard({
   emailVerified = true,
   onSwitchCourse,
   onAddCourse,
+  curriculum = null,
+  onOpenRoadmaps,
 }) {
   const [verifyMsg, setVerifyMsg] = useState("");
   const [verifyBusy, setVerifyBusy] = useState(false);
@@ -326,8 +285,8 @@ export default function Dashboard({
     }
   }
 
-  const levels = language === "python" ? PYTHON_LEVELS : CPP_LEVELS;
-  const langLabel = language === "python" ? "🐍 Python Track" : "⚡ C++ Track";
+  const levels = curriculum?.levels || [];
+  const langLabel = `${trackMeta(language).icon} ${trackMeta(language).label} Track`;
   const { doneLevels, stars, currentLevel } = progress;
   const totalStars = Object.values(stars).reduce((a, b) => a + b, 0);
   const pct = Math.round((doneLevels.length / 20) * 100);
@@ -344,6 +303,8 @@ export default function Dashboard({
         email={email}
         profile={profile}
         language={language}
+        projects={curriculum?.projects || []}
+        projectExtensions={curriculum?.projectExtensions || []}
         onBack={() => setPage(null)}
       />
     );
@@ -407,8 +368,8 @@ export default function Dashboard({
                       onClick={() => onSwitchCourse && onSwitchCourse(lang)}
                       className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition-colors ${active ? "bg-[#EEF3FF] border border-[#C9D6FB]" : "hover:bg-[#F6F1FB] border border-transparent"}`}
                     >
-                      <span className="text-lg shrink-0">{lang === "python" ? "🐍" : "⚡"}</span>
-                      <span className="text-xs font-bold text-accent flex-1 min-w-0 truncate">{lang === "python" ? "Python" : "C++"}</span>
+                      <span className="text-lg shrink-0">{trackMeta(lang).icon}</span>
+                      <span className="text-xs font-bold text-accent flex-1 min-w-0 truncate">{trackMeta(lang).label}</span>
                       {active && <span className="text-[10px] font-black uppercase tracking-wide text-[#6E8BF5] shrink-0">Active</span>}
                     </button>
                   );
@@ -466,6 +427,7 @@ export default function Dashboard({
           {/* PINNED FOOTER NAV */}
           <div className="p-3 border-t border-[#EFE7F6] shrink-0 space-y-1 relative">
             <SidebarItem icon={<Crown size={18} />} label="Projects" onClick={() => setPage("projects")} tone="default" />
+            <SidebarItem icon={<Compass size={18} />} label="AI Roadmap Generator" onClick={onOpenRoadmaps} />
             <SidebarItem icon={<Settings size={18} />} label="Profile Settings" onClick={() => setShowProfile(true)} />
             <SidebarItem icon={<HelpCircle size={18} />} label="About CodeMentorX" onClick={() => setShowAbout(true)} />
             <SidebarItem icon={<LogOut size={18} />} label="Log Out" onClick={onLogout} tone="danger" />

@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle, Upload, Lock, Award, PlayCircle, RefreshCw, Star, Printer, XCircle, ShieldCheck, QrCode as QrIcon, ExternalLink, Calendar, Mail, Phone } from "lucide-react";
 import QRCode from "qrcode";
 import { apiRequest } from "../utils/api";
+import { trackMeta } from "../utils/tracks";
 import codementorLogo from "../assets/codementor-logo.png";
 
 const CONFETTI_COLORS = ["#F49B00", "#25367C", "#2e9d62", "#c62828", "#8e44ad", "#f5c842"];
@@ -37,31 +38,7 @@ function ConfettiBurst() {
   );
 }
 
-const PYTHON_PROJECTS = [
-  { id: 0, title: "Student Grade Calculator",     desc: "Build a program that takes marks for 5 subjects and calculates GPA, grade, and pass/fail status.",         difficulty: "Easy"   },
-  { id: 1, title: "Library Book Manager",          desc: "Create a console app to add, search, remove, and list books using lists and dictionaries.",                difficulty: "Easy"   },
-  { id: 2, title: "Simple ATM Machine",            desc: "Simulate an ATM: login with PIN, check balance, deposit, withdraw, with proper validation.",              difficulty: "Easy"   },
-  { id: 3, title: "Weather Data Analyzer",         desc: "Read a CSV of daily temperatures, calculate averages, find hottest/coldest days, and plot a chart.",      difficulty: "Medium" },
-  { id: 4, title: "Contact Book App",              desc: "Build a contact manager with add/search/edit/delete using file handling to persist data.",                 difficulty: "Medium" },
-  { id: 5, title: "Quiz Game",                     desc: "Create a multiple-choice quiz app with a timer, score tracking, and a leaderboard saved to file.",        difficulty: "Medium" },
-  { id: 6, title: "Expense Tracker",               desc: "Track daily expenses by category, show monthly summaries, and warn when a budget limit is exceeded.",      difficulty: "Medium" },
-  { id: 7, title: "Text-Based Adventure Game",     desc: "Design a story-driven game with branching choices, inventory, and at least 3 different endings.",          difficulty: "Hard"   },
-  { id: 8, title: "Student Management System",     desc: "Full OOP project: classes for Student, Course, Teacher with file-based storage and a menu-driven UI.",    difficulty: "Hard"   },
-  { id: 9, title: "Chat Bot (Rule-Based)",         desc: "Build a rule-based chatbot that answers FAQs, remembers user name, and logs conversations to a file.",    difficulty: "Hard"   },
-];
-
-const CPP_PROJECTS = [
-  { id: 0, title: "Temperature Converter",         desc: "Convert between Celsius, Fahrenheit, and Kelvin with input validation and formatted output.",              difficulty: "Easy"   },
-  { id: 1, title: "Simple Calculator",             desc: "Build a calculator with all operators, error handling for division by zero, and a history log.",          difficulty: "Easy"   },
-  { id: 2, title: "Number Guessing Game",          desc: "Generate a random number; player guesses with hints (higher/lower) and a limited number of tries.",       difficulty: "Easy"   },
-  { id: 3, title: "Student Record System",         desc: "OOP project using classes to store, search, sort, and display student records with file I/O.",            difficulty: "Medium" },
-  { id: 4, title: "Linked List Implementation",    desc: "Implement a singly linked list with insert, delete, search, and reverse operations from scratch.",        difficulty: "Medium" },
-  { id: 5, title: "Bank Account System",           desc: "Simulate accounts with deposit, withdraw, transfer, and statement history using OOP and file handling.",  difficulty: "Medium" },
-  { id: 6, title: "Stack & Queue Library",         desc: "Build your own Stack and Queue classes using arrays, then solve 3 real problems using each.",             difficulty: "Medium" },
-  { id: 7, title: "Mini Shell Interpreter",        desc: "Parse and execute simple shell commands (ls, cd, echo) using string parsing and system calls.",           difficulty: "Hard"   },
-  { id: 8, title: "Binary Search Tree",            desc: "Implement a BST with insert, delete, search, and all three traversals. Visualise output in the console.", difficulty: "Hard"   },
-  { id: 9, title: "Inventory Management System",   desc: "Full OOP system: Product, Category, Stock classes with file persistence, search, and low-stock alerts.", difficulty: "Hard"   },
-];
+// Projects come from the backend curriculum (Module 2.1) via the `projects` prop.
 
 const diffColor = {
   Easy:   "bg-green-100 text-green-700 border-green-200",
@@ -83,10 +60,11 @@ async function reviewCodeWithAI(fileContent, fileName, language, projectId) {
   }
 }
 
-export default function Certificate({ username = "Student", email = "", profile = {}, language = "python", onBack, initialView = "projects" }) {
-  const PROJECTS = language === "python" ? PYTHON_PROJECTS : CPP_PROJECTS;
-  const acceptExt = language === "python" ? ".py" : ".cpp,.cc,.cxx";
-  const langLabel = language === "python" ? "🐍 Python" : "⚡ C++";
+export default function Certificate({ username = "Student", email = "", profile = {}, language = "python", projects = [], projectExtensions = [], onBack, initialView = "projects" }) {
+  const PROJECTS = projects;
+  const acceptExt = projectExtensions.join(",");
+  const meta = trackMeta(language);
+  const langLabel = `${meta.icon} ${meta.label}`;
 
   const [view, setView] = useState(initialView); 
   const [projectState, setProjectState] = useState({});
@@ -241,9 +219,14 @@ export default function Certificate({ username = "Student", email = "", profile 
     reader.readAsText(file);
   }
 
+  // One Dograh voice agent per track. Java, JavaScript and React need their own
+  // agents created in Dograh and their embed tokens added to the frontend .env.
   const DOGRAH_TOKENS = {
     python: import.meta.env.VITE_DOGRAH_PYTHON_TOKEN || "emb_FZ1Vl_NeqUiqFoYrXbGs3r9TxGPMBaEKuy9s7wGgytE",
     cpp: import.meta.env.VITE_DOGRAH_CPP_TOKEN || "emb_kGxkMJ2Bxt6r5S7e4xMiQW1XMzyuytt4IWNsEm30QvE",
+    java: import.meta.env.VITE_DOGRAH_JAVA_TOKEN,
+    javascript: import.meta.env.VITE_DOGRAH_JAVASCRIPT_TOKEN,
+    react: import.meta.env.VITE_DOGRAH_REACT_TOKEN,
   };
 
   React.useEffect(() => {
@@ -332,6 +315,12 @@ export default function Certificate({ username = "Student", email = "", profile 
       if (existingScript) existingScript.remove();
 
       const token = DOGRAH_TOKENS[language];
+      if (!token) {
+        setCallState("idle");
+        setInterviewStarted(false);
+        alert(`The voice interview for ${meta.label} is not set up yet. Please ask the admin to add its Dograh agent.`);
+        return;
+      }
       const script = document.createElement("script");
       script.id = "dograh-widget";
       script.src = `https://app.dograh.com/embed/dograh-widget.js?token=${token}&environment=production&apiEndpoint=https://api.dograh.com`;
@@ -473,7 +462,7 @@ export default function Certificate({ username = "Student", email = "", profile 
                 <div key={proj.id} className={`bg-white rounded-3xl p-6 border-4 shadow-gamified flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 ${isSolved ? 'border-success' : needsRetry ? 'border-danger' : 'border-gray-200'}`}>
                   <div>
                     <div className="flex justify-between items-start mb-4">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl text-white ${language === "python" ? "bg-blue-500" : "bg-indigo-600"}`}>
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl text-white ${meta.tile}`}>
                         {proj.id + 1}
                       </div>
                       {isSolved && <div className="bg-success text-white text-xs font-black px-3 py-1 rounded-full flex items-center gap-1"><CheckCircle size={12}/> SOLVED</div>}
@@ -751,7 +740,7 @@ export default function Certificate({ username = "Student", email = "", profile 
                 <div className="inline-flex items-center gap-2.5 bg-blue-50/80 border border-blue-100 px-5 py-1.5 rounded-full mb-3 shadow-xs">
                   <span className="text-lg">{language === 'python' ? '🐍' : '⚡'}</span>
                   <span className="font-bold text-[#25367C] text-sm sm:text-base tracking-wide">
-                    {language === "python" ? "Python Programming Track" : "C++ Programming Track"}
+                    {`${meta.label} Programming Track`}
                   </span>
                 </div>
 

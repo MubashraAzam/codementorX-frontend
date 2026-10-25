@@ -6,6 +6,8 @@ import Dashboard from "./components/Dashboard";
 import LevelPage from "./components/LevelPage";
 import VerifyCertificate from "./components/VerifyCertificate";
 import VerifyEmail from "./components/VerifyEmail";
+import RoadmapPage from "./components/RoadmapPage";
+import { fetchCurriculum } from "./utils/curriculum";
 import AnimatedBackground from "./components/AnimatedBackground";
 import { apiRequest, getToken, clearToken, saveToken } from "./utils/api";
 
@@ -16,13 +18,29 @@ function ProtectedRoute({ children }) {
   return getToken() ? children : <Navigate to="/" replace />;
 }
 
-function LevelWrapper({ username, language, progress, onComplete }) {
+function PageLoader({ label = "Loading…" }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-4 h-screen text-accent font-bold">
+      <div className="w-10 h-10 rounded-full border-4 border-[#14325D]/10 border-t-[#F49B00] animate-spin" />
+      {label}
+    </div>
+  );
+}
+
+function LevelWrapper({ username, language, progress, curriculum, onComplete }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const levelIndex = parseInt(id, 10) || 0;
+  const levelIndex = Math.min(Math.max(parseInt(id, 10) || 0, 0), 19);
+
+  // Wait for this track's levels and progress so the lock check is accurate.
+  if (curriculum?.language !== language || progress.language !== language) {
+    return <PageLoader label="Loading level…" />;
+  }
 
   return (
     <LevelPage
+      key={language}
+      levels={curriculum.levels}
       username={username}
       language={language}
       levelIndex={levelIndex}
@@ -42,6 +60,7 @@ export default function App() {
   const [language, setLanguage] = useState(null);
   const [enrollments, setEnrollments] = useState([]);
   const [account, setAccount] = useState({ role: "student", emailVerified: true });
+  const [curriculum, setCurriculum] = useState(null); // levels + projects of the active track
   const [profile, setProfile] = useState({
     firstName: "",
     lastName: "",
@@ -127,6 +146,7 @@ export default function App() {
         try {
           const data = await apiRequest(`/api/progress/${language}`, { method: "GET" });
           setProgress({
+            language,
             doneLevels: data.doneLevels || [],
             stars: data.stars || {},
             currentLevel: data.currentLevel || 0,
@@ -137,6 +157,16 @@ export default function App() {
       }
     }
     fetchProgress();
+  }, [language]);
+
+  // Module 2.1 — load the active track's levels and projects from the backend.
+  useEffect(() => {
+    if (!language) return;
+    let cancelled = false;
+    fetchCurriculum(language)
+      .then((data) => { if (!cancelled) setCurriculum(data); })
+      .catch((err) => console.error("Failed to load curriculum", err));
+    return () => { cancelled = true; };
   }, [language]);
 
   // Pull the full profile (login/register responses are slim) in the background
@@ -203,6 +233,7 @@ export default function App() {
     // Prefer the server's graded progress; fall back to a local update.
     if (serverProgress) {
       setProgress({
+        language,
         doneLevels: serverProgress.doneLevels || [],
         stars: serverProgress.stars || {},
         currentLevel: serverProgress.currentLevel || 0,
@@ -210,6 +241,7 @@ export default function App() {
       return;
     }
     setProgress(prev => ({
+      language: prev.language,
       doneLevels: prev.doneLevels.includes(index)
         ? prev.doneLevels
         : [...prev.doneLevels, index],
@@ -283,8 +315,12 @@ export default function App() {
             path="/dashboard" 
             element={
               <ProtectedRoute>
-                {language ? (
+                {language && curriculum?.language !== language ? (
+                  <PageLoader label="Loading your course…" />
+                ) : language ? (
                   <Dashboard
+                    curriculum={curriculum}
+                    onOpenRoadmaps={() => navigate("/roadmaps")}
                     username={username}
                     email={email}
                     language={language}
@@ -313,6 +349,7 @@ export default function App() {
                     username={username} 
                     language={language} 
                     progress={progress} 
+                    curriculum={curriculum}
                     onComplete={handleLevelComplete} 
                   />
                 ) : (
@@ -320,6 +357,17 @@ export default function App() {
                 )}
               </ProtectedRoute>
             } 
+          />
+          <Route
+            path="/roadmaps"
+            element={
+              <ProtectedRoute>
+                <RoadmapPage
+                  onBack={() => navigate(language ? "/dashboard" : "/choose-path")}
+                  onEnrollTrack={(lang) => navigate(`/choose-path?track=${lang}`)}
+                />
+              </ProtectedRoute>
+            }
           />
           <Route
             path="/verify-email/:token"
