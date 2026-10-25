@@ -5,8 +5,16 @@ import ChoosePath from "./components/ChoosePath";
 import Dashboard from "./components/Dashboard";
 import LevelPage from "./components/LevelPage";
 import VerifyCertificate from "./components/VerifyCertificate";
+import VerifyEmail from "./components/VerifyEmail";
 import AnimatedBackground from "./components/AnimatedBackground";
-import { apiRequest, getToken, clearToken } from "./utils/api";
+import { apiRequest, getToken, clearToken, saveToken } from "./utils/api";
+
+// Declared at module level so it keeps the same component identity across
+// renders. Defined inside App, every App state change (e.g. saving progress)
+// created a new component type and remounted the whole page underneath it.
+function ProtectedRoute({ children }) {
+  return getToken() ? children : <Navigate to="/" replace />;
+}
 
 function LevelWrapper({ username, language, progress, onComplete }) {
   const { id } = useParams();
@@ -32,6 +40,8 @@ export default function App() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [language, setLanguage] = useState(null);
+  const [enrollments, setEnrollments] = useState([]);
+  const [account, setAccount] = useState({ role: "student", emailVerified: true });
   const [profile, setProfile] = useState({
     firstName: "",
     lastName: "",
@@ -49,9 +59,18 @@ export default function App() {
   // Merge a user payload (from /me or a profile update) into local state
   function applyUser(user) {
     if (!user) return;
+    // Profile updates return a fresh token (the old one stops working after a password change).
+    if (user.token) saveToken(user.token);
     if (user.username) setUsername(user.username);
     if (user.email) setEmail(user.email);
-    if (user.language) setLanguage(user.language);
+    if (user.language !== undefined) setLanguage(user.language);
+    if (Array.isArray(user.enrollments)) setEnrollments(user.enrollments);
+    if (user.role || user.emailVerified !== undefined) {
+      setAccount((prev) => ({
+        role: user.role ?? prev.role,
+        emailVerified: user.emailVerified ?? prev.emailVerified,
+      }));
+    }
     setProfile((prev) => ({
       firstName: user.firstName ?? prev.firstName,
       lastName: user.lastName ?? prev.lastName,
@@ -146,13 +165,33 @@ export default function App() {
     navigate("/choose-path");
   }
 
-  function handleSelectPath(lang) {
-    setLanguage(lang);
+  // ChoosePath enrolls through /api/courses/enroll and hands back the updated user.
+  function handleSelectPath(user) {
+    applyUser(user);
     navigate("/dashboard");
   }
 
-  function handleLogout() {
+  // Switch the dashboard to another enrolled course (Module 1.3).
+  async function handleSwitchCourse(lang) {
+    if (lang === language) return;
+    try {
+      const user = await apiRequest("/api/courses/active", { method: "PUT", body: { language: lang } });
+      setProgress({ doneLevels: [], stars: {}, currentLevel: 0 });
+      applyUser(user);
+    } catch (err) {
+      alert(err.message || "Could not switch course");
+    }
+  }
+
+  async function handleLogout() {
+    // Ends the session on the server too, so the token cannot be reused (Module 1.4).
+    try {
+      if (getToken()) await apiRequest("/api/auth/logout", { method: "POST" });
+    } catch {
+      // Already expired or offline — clearing locally is enough.
+    }
     clearToken();
+    setEnrollments([]);
     setUsername("");
     setEmail("");
     setLanguage(null);
@@ -160,7 +199,16 @@ export default function App() {
     navigate("/");
   }
 
-  function handleLevelComplete(index, stars) {
+  function handleLevelComplete(index, stars, serverProgress) {
+    // Prefer the server's graded progress; fall back to a local update.
+    if (serverProgress) {
+      setProgress({
+        doneLevels: serverProgress.doneLevels || [],
+        stars: serverProgress.stars || {},
+        currentLevel: serverProgress.currentLevel || 0,
+      });
+      return;
+    }
     setProgress(prev => ({
       doneLevels: prev.doneLevels.includes(index)
         ? prev.doneLevels
@@ -203,10 +251,6 @@ export default function App() {
     );
   }
 
-  const ProtectedRoute = ({ children }) => {
-    return getToken() ? children : <Navigate to="/" replace />;
-  };
-
   return (
     <div className="relative min-h-screen w-full font-body overflow-hidden bg-background">
       <AnimatedBackground />
@@ -226,7 +270,12 @@ export default function App() {
             path="/choose-path" 
             element={
               <ProtectedRoute>
-                <ChoosePath username={username} onSelectPath={handleSelectPath} />
+                <ChoosePath
+                  username={username}
+                  enrollments={enrollments}
+                  onSelectPath={handleSelectPath}
+                  onBack={language ? () => navigate("/dashboard") : null}
+                />
               </ProtectedRoute>
             } 
           />
@@ -244,6 +293,10 @@ export default function App() {
                     onLevelOpen={(index) => navigate(`/level/${index}`)}
                     onLogout={handleLogout}
                     onUpdateProfile={applyUser}
+                    enrollments={enrollments}
+                    emailVerified={account.emailVerified}
+                    onSwitchCourse={handleSwitchCourse}
+                    onAddCourse={() => navigate("/choose-path")}
                   />
                 ) : (
                   <Navigate to="/choose-path" />
@@ -267,6 +320,10 @@ export default function App() {
                 )}
               </ProtectedRoute>
             } 
+          />
+          <Route
+            path="/verify-email/:token"
+            element={<VerifyEmail onVerified={() => setAccount((a) => ({ ...a, emailVerified: true }))} />}
           />
           <Route 
             path="/verify/:certId" 

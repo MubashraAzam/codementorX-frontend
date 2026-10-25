@@ -11,7 +11,7 @@ import { apiRequest } from "../utils/api";
  *   username        string  — displayed in the welcome pill
  *   onSelectPath    fn      — called with "python" | "cpp" when user confirms
  */
-export default function ChoosePath({ username = "Student", onSelectPath }) {
+export default function ChoosePath({ username = "Student", enrollments = [], onSelectPath, onBack }) {
   const [step, setStep] = useState(0);
   const [selected, setSelected] = useState(null);
   const [toast, setToast] = useState({ show: false, msg: "" });
@@ -44,11 +44,12 @@ export default function ChoosePath({ username = "Student", onSelectPath }) {
     if (!selected) { showToast("👆 Please pick a track first!"); return; }
     setConfirming(true);
     try {
-      await apiRequest("/api/auth/profile", {
-        method: "PUT",
+      // Enrolls in the course (or reopens it) and makes it the active course.
+      const user = await apiRequest("/api/courses/enroll", {
+        method: "POST",
         body: { language: selected },
       });
-      if (onSelectPath) onSelectPath(selected);
+      if (onSelectPath) onSelectPath(user);
     } catch (err) {
       showToast(`⚠️ ${err.message}`);
     } finally {
@@ -81,6 +82,11 @@ export default function ChoosePath({ username = "Student", onSelectPath }) {
           <div className="cp-logo-box">🎓</div>
           CodeMentor X
         </div>
+        {onBack && (
+          <button className="cp-user-pill" style={{ cursor: "pointer", border: "none" }} onClick={onBack}>
+            ← Back to dashboard
+          </button>
+        )}
         <div className="cp-user-pill">
           <div className="cp-avatar">{username ? username[0].toUpperCase() : "S"}</div>
           Welcome, {username || "Student"}!
@@ -122,7 +128,7 @@ export default function ChoosePath({ username = "Student", onSelectPath }) {
               <li><span className="cp-feat-dot">✓</span>Completion certificate</li>
             </ul>
             <button className="cp-card-btn">
-              {selected === "python" ? "✓ Python Selected" : "Start Python Journey →"}
+              {selected === "python" ? "✓ Python Selected" : enrollments.includes("python") ? "✓ Enrolled — Continue →" : "Start Python Journey →"}
             </button>
           </div>
 
@@ -146,7 +152,7 @@ export default function ChoosePath({ username = "Student", onSelectPath }) {
               <li><span className="cp-feat-dot">✓</span>Completion certificate</li>
             </ul>
             <button className="cp-card-btn">
-              {selected === "cpp" ? "✓ C++ Selected" : "Start C++ Journey →"}
+              {selected === "cpp" ? "✓ C++ Selected" : enrollments.includes("cpp") ? "✓ Enrolled — Continue →" : "Start C++ Journey →"}
             </button>
           </div>
         </div>

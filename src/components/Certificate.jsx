@@ -69,15 +69,17 @@ const diffColor = {
   Hard:   "bg-red-100 text-red-700 border-red-200",
 };
 
-async function reviewCodeWithAI(fileContent, fileName, language, projectTitle, projectDesc) {
+// The server reviews the code against its own copy of the project requirements
+// and saves the result itself; the browser never sends a star rating.
+async function reviewCodeWithAI(fileContent, fileName, language, projectId) {
   try {
     const data = await apiRequest("/api/ai/review-project", {
       method: "POST",
-      body: { code: fileContent, fileName, language, projectTitle, projectDesc },
+      body: { code: fileContent, fileName, language, projectId },
     });
-    return data;
+    return { ...data, ok: true };
   } catch (err) {
-    return { stars: 0, feedback: `⚠️ Review failed: ${err.message}` };
+    return { ok: false, stars: 0, feedback: `⚠️ Review failed: ${err.message}` };
   }
 }
 
@@ -219,22 +221,22 @@ export default function Certificate({ username = "Student", email = "", profile 
         [projId]: { status: "submitted", fileName: file.name, stars: 0, feedback: null },
       }));
       setReviewingId(projId);
-      const proj = PROJECTS.find(p => p.id === projId);
-      const result = await reviewCodeWithAI(content, file.name, language, proj.title, proj.desc);
+      const result = await reviewCodeWithAI(content, file.name, language, projId);
+      // The saved (best) result decides whether the project counts as solved;
+      // this upload's own rating and feedback are still shown to the student.
+      const bestStars = result.ok ? Math.max(result.best?.stars || 0, result.stars) : (projectState[projId]?.stars || 0);
       setProjectState(prev => ({
         ...prev,
-        [projId]: { status: result.stars >= 2 ? "solved" : "needs_retry", fileName: file.name, stars: result.stars, feedback: result.feedback },
+        [projId]: {
+          status: bestStars >= 2 ? "solved" : "needs_retry",
+          fileName: file.name,
+          stars: bestStars,
+          lastStars: result.stars,
+          feedback: result.feedback,
+        },
       }));
       setReviewingId(null);
-
-      try {
-        await apiRequest(`/api/progress/${language}/project`, {
-          method: "PUT",
-          body: { projectId: projId, stars: result.stars, feedback: result.feedback, fileName: file.name },
-        });
-      } catch (err) {
-        console.error("Failed to save project result:", err.message);
-      }
+      e.target.value = "";
     };
     reader.readAsText(file);
   }
@@ -351,7 +353,11 @@ export default function Certificate({ username = "Student", email = "", profile 
     } catch (err) {
       console.error("Failed to start interview", err);
       setCallState("idle");
-      alert("Failed to connect to the voice agent.");
+      setInterviewStarted(false);
+      const blockers = err?.data?.blockers;
+      alert(blockers?.length
+        ? `You can't start the interview yet:\n\n• ${blockers.join("\n• ")}`
+        : `Failed to connect to the voice agent. ${err?.message || ""}`);
     }
   }
 
@@ -575,7 +581,9 @@ export default function Certificate({ username = "Student", email = "", profile 
                     if (cert) setCertificate(cert);
                     setView("certificate");
                   } catch (err) {
-                    alert(`Could not issue certificate: ${err.message}`);
+                    alert(err?.data?.code === "EMAIL_NOT_VERIFIED"
+                      ? "Please verify your email address first. Use the \"Resend email\" button on your dashboard if you can't find the link."
+                      : `Could not issue certificate: ${err.message}`);
                   }
                 }} className="btn-game btn-cute w-full max-w-xs py-4 text-lg mx-auto shadow-gamified">
                   <Award className="mr-2"/> {certificate ? "View & Download Certificate" : "Claim Certificate"}

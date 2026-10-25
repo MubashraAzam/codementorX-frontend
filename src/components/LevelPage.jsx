@@ -153,6 +153,10 @@ export default function LevelPage({
   const [quizAnswers, setQuizAnswers] = useState([]);
   const [quizDone, setQuizDone]     = useState(false);
   const [quizError, setQuizError]   = useState(null);
+  const [quizAttemptId, setQuizAttemptId] = useState(null);
+  const [quizReveal, setQuizReveal] = useState({});      // step -> { correct, correctIndex, exp } from the server
+  const [quizResult, setQuizResult] = useState(null);    // graded result from the server
+  const [quizFinishing, setQuizFinishing] = useState(false);
   const [quizHints, setQuizHints]   = useState({});       // keyed by quizStep
   const [quizHintLoading, setQuizHintLoading] = useState({});
 
@@ -176,6 +180,9 @@ export default function LevelPage({
     setQuizAnswers([]);
     setQuizDone(false);
     setQuizError(null);
+    setQuizAttemptId(null);
+    setQuizReveal({});
+    setQuizResult(null);
     setQuizHints({});
     setQuizHintLoading({});
     setHintOpen(false);
@@ -206,23 +213,25 @@ export default function LevelPage({
     setPracticeLoading(false);
   }
 
+  // The quiz is generated and graded on the server: the client only ever sees
+  // questions and options, and learns the right answer after locking one in.
   async function loadQuiz() {
     setQuizLoading(true);
     setQuizError(null);
-    const prompt = `Create a quiz with exactly 5 multiple-choice questions for ${language === "python" ? "Python" : "C++"} "${level.title}" (${level.sub}). Return ONLY valid JSON like: [{"q":"Question?","opts":["A","B","C","D"],"ans":0,"exp":"Why A is correct"}]. The ans field is 0-based index. No markdown, no extra text.`;
-    const raw = await callAI(prompt);
+    setQuizData(null);
+    setQuizAttemptId(null);
+    setQuizReveal({});
+    setQuizResult(null);
+    setQuizStep(0);
+    setQuizAnswers([]);
+    setQuizDone(false);
+    setQuizHints({});
     try {
-      const clean = raw.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(clean);
-      setQuizData(parsed);
-    } catch {
-      setQuizData([
-        { q: `What is the correct way to write a conditional in ${language === "python" ? "Python" : "C++"}?`, opts: ["if x > 0 {}", "if (x > 0):", "if x > 0:", "when x > 0:"], ans: language === "python" ? 2 : 1, exp: `Practice makes perfect.` },
-        { q: `Which of the following is a valid comparison operator?`, opts: ["===", "==", "<>", "=!"], ans: 1, exp: "== is the equality comparison operator." },
-        { q: "What does an if-else block do?", opts: ["Loops through data", "Executes code conditionally", "Defines a function", "Imports a module"], ans: 1, exp: "Runs different code depending on condition." },
-        { q: "What happens when an if condition is False and there is no else?", opts: ["Error occurs", "Program crashes", "The block is skipped", "It runs anyway"], ans: 2, exp: "The if block is simply skipped." },
-        { q: "Which operator requires BOTH conditions to be True?", opts: ["or", "not", "and", "xor"], ans: 2, exp: "The 'and' operator." },
-      ]);
+      const data = await apiRequest(`/api/assessment/${language}/${currentIdx}/start`, { method: "POST" });
+      setQuizAttemptId(data.attemptId);
+      setQuizData(data.questions);
+    } catch (err) {
+      setQuizError(err.message || "Could not load the quiz. Please try again.");
     }
     setQuizLoading(false);
   }
@@ -285,46 +294,54 @@ export default function LevelPage({
     setSolLoading(s => ({ ...s, [idx]: false }));
   }
 
-  function answerQ(optIdx, event) {
-    if (quizAnswers[quizStep] !== undefined) return;
+  async function answerQ(optIdx, event) {
+    const step = quizStep;
+    if (quizAnswers[step] !== undefined || !quizAttemptId) return;
+    // Read the button position now; the event is gone after the await.
+    const rect = event?.currentTarget?.getBoundingClientRect();
     setQuizAnswers(prev => {
       const next = [...prev];
-      next[quizStep] = optIdx;
+      next[step] = optIdx;
       return next;
     });
-    
-    // Gamification XP pop if correct
-    if (quizData[quizStep].ans === optIdx && event) {
-      const rect = event.currentTarget.getBoundingClientRect();
-      const x = rect.left + rect.width / 2;
-      const y = rect.top;
-      setXpPopups(prev => [...prev, { id: Date.now(), xp: 10, x, y }]);
+
+    try {
+      const data = await apiRequest(`/api/assessment/attempt/${quizAttemptId}/answer`, {
+        method: "POST",
+        body: { index: step, choice: optIdx },
+      });
+      setQuizReveal(r => ({ ...r, [step]: { correct: data.correct, correctIndex: data.correctIndex, exp: data.exp } }));
+      setQuizError(null);
+      if (data.correct && rect) {
+        setXpPopups(prev => [...prev, { id: Date.now(), xp: 10, x: rect.left + rect.width / 2, y: rect.top }]);
+      }
+    } catch (err) {
+      // Let the student pick again if the answer did not reach the server.
+      setQuizAnswers(prev => {
+        const next = [...prev];
+        delete next[step];
+        return next;
+      });
+      setQuizError(err.message || "Could not save your answer. Please try again.");
     }
   }
 
   async function nextQ() {
     if (quizStep < quizData.length - 1) {
       setQuizStep(s => s + 1);
-    } else {
-      setQuizDone(true);
-      const correct = quizAnswers.filter((a, i) => a === quizData[i].ans).length;
-      const score = Math.round((correct / quizData.length) * 100);
-      let stars = 0;
-      if (score >= 85) stars = 3;
-      else if (score >= 70) stars = 2;
-      else if (score >= 50) stars = 1;
-      setEarnedStars(stars);
-
-      if (stars > 0) {
-        try {
-          await apiRequest(`/api/progress/${language}/level`, {
-            method: "PUT",
-            body: { levelIndex: currentIdx, stars },
-          });
-        } catch (err) {}
-        if (onComplete) onComplete(currentIdx, stars);
-      }
+      return;
     }
+    setQuizFinishing(true);
+    try {
+      const result = await apiRequest(`/api/assessment/attempt/${quizAttemptId}/finish`, { method: "POST" });
+      setQuizResult(result);
+      setEarnedStars(prev => Math.max(prev, result.stars || 0));
+      setQuizDone(true);
+      if (result.stars > 0 && onComplete) onComplete(currentIdx, result.stars, result.progress);
+    } catch (err) {
+      setQuizError(err.message || "Could not grade the quiz. Please try again.");
+    }
+    setQuizFinishing(false);
   }
 
   function navigateLevel(dir) {
@@ -343,8 +360,8 @@ export default function LevelPage({
     }
   }
 
-  const correctCount = quizDone ? quizAnswers.filter((a, i) => quizData && a === quizData[i].ans).length : 0;
-  const finalScore = quizData ? Math.round((correctCount / quizData.length) * 100) : 0;
+  const correctCount = quizResult?.correct ?? 0;
+  const finalScore = quizResult?.score ?? 0;
 
   return (
     <motion.div 
@@ -504,6 +521,15 @@ export default function LevelPage({
               <motion.div key="quiz" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
                 {quizLoading && <div className="bg-white rounded-3xl p-8 border border-[#ECE7F4]"><LoadingDots label="Generating quiz questions..." /></div>}
 
+                {quizError && !quizLoading && (
+                  <div className="bg-red-50 border-2 border-red-200 text-red-700 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
+                    <span className="font-medium">{quizError}</span>
+                    {!quizData && (
+                      <button className="btn-game btn-secondary text-sm py-2 px-4" onClick={loadQuiz}><RefreshCw size={16}/> Try again</button>
+                    )}
+                  </div>
+                )}
+
                 {quizData && !quizDone && !quizLoading && (
                   <div className="bg-white rounded-3xl p-8 border border-[#ECE7F4] shadow-gamified">
                     <div className="flex justify-between items-center mb-6">
@@ -519,12 +545,17 @@ export default function LevelPage({
 
                     <div className="space-y-3">
                       {quizData[quizStep].opts.map((opt, i) => {
+                        const reveal = quizReveal[quizStep];
                         const answered = quizAnswers[quizStep] !== undefined;
-                        const isCorrect = i === quizData[quizStep].ans;
+                        const isCorrect = reveal ? i === reveal.correctIndex : false;
                         const isSelected = i === quizAnswers[quizStep];
                         
                         let btnStyle = "border border-[#ECE7F4] hover:border-[#8B6FE8] hover:bg-[#8B6FE8]/10 bg-white text-gray-700 shadow-[0_4px_0_0_#E6EBF3]";
-                        if (answered) {
+                        if (answered && !reveal) {
+                          btnStyle = isSelected
+                            ? "bg-[#8B6FE8]/10 border-2 border-[#8B6FE8] text-[#8B6FE8] shadow-none"
+                            : "bg-gray-50 border border-[#ECE7F4] text-gray-400 shadow-none opacity-50";
+                        } else if (answered) {
                           if (isCorrect) btnStyle = "bg-green-100 border-2 border-success text-success shadow-[0_4px_0_0_#2E9D62]";
                           else if (isSelected) btnStyle = "bg-red-100 border-2 border-danger text-danger shadow-none translate-y-1";
                           else btnStyle = "bg-gray-50 border border-[#ECE7F4] text-gray-400 shadow-none opacity-50";
@@ -546,10 +577,10 @@ export default function LevelPage({
                       })}
                     </div>
 
-                    {quizAnswers[quizStep] !== undefined && (
-                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`mt-6 p-4 rounded-xl border-2 ${quizAnswers[quizStep] === quizData[quizStep].ans ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
-                        <strong>{quizAnswers[quizStep] === quizData[quizStep].ans ? "✅ Correct! " : "❌ Incorrect. "}</strong>
-                        {quizData[quizStep].exp}
+                    {quizReveal[quizStep] && (
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`mt-6 p-4 rounded-xl border-2 ${quizReveal[quizStep].correct ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                        <strong>{quizReveal[quizStep].correct ? "✅ Correct! " : "❌ Incorrect. "}</strong>
+                        {quizReveal[quizStep].exp}
                       </motion.div>
                     )}
 
@@ -567,9 +598,9 @@ export default function LevelPage({
                       <button className="btn-game btn-secondary text-sm py-2 px-4" onClick={getQuizHint} disabled={quizHintLoading[quizStep] || quizAnswers[quizStep] !== undefined}>
                         {quizHintLoading[quizStep] ? <RefreshCw className="animate-spin" size={16}/> : <Lightbulb size={16}/>} Hint
                       </button>
-                      {quizAnswers[quizStep] !== undefined && (
-                        <button className="btn-game btn-cute" onClick={nextQ}>
-                          {quizStep === quizData.length - 1 ? "Finish" : "Next"} <ChevronRight size={18}/>
+                      {quizReveal[quizStep] && (
+                        <button className="btn-game btn-cute" onClick={nextQ} disabled={quizFinishing}>
+                          {quizFinishing ? "Grading..." : quizStep === quizData.length - 1 ? "Finish" : "Next"} <ChevronRight size={18}/>
                         </button>
                       )}
                     </div>
@@ -591,8 +622,8 @@ export default function LevelPage({
                     </p>
 
                     <div className="flex flex-wrap justify-center gap-4">
-                      <button className="btn-game btn-secondary" onClick={() => { setQuizStep(0); setQuizAnswers([]); setQuizDone(false); }}><RefreshCw size={18}/> Retry</button>
-                      {finalScore >= 50 && currentIdx < 19 && (
+                      <button className="btn-game btn-secondary" onClick={loadQuiz}><RefreshCw size={18}/> New Quiz</button>
+                      {(quizResult?.stars || 0) > 0 && currentIdx < 19 && (
                         <button className="btn-game btn-cute" onClick={() => navigateLevel(1)}>Next Level <ChevronRight size={18}/></button>
                       )}
                     </div>

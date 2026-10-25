@@ -5,7 +5,7 @@ import {
   ChevronRight, Zap, Target, Lock, PlayCircle, CheckCircle,
   Crown, LayoutDashboard, Menu, X, Rocket, LogOut, Flame,
   Camera, Trash2, User as UserIcon, Mail, Phone, Calendar,
-  ShieldCheck, Eye, EyeOff
+  ShieldCheck, Eye, EyeOff, BookOpen, Plus
 } from "lucide-react";
 import Certificate from "./Certificate";
 import { apiRequest } from "../utils/api";
@@ -31,9 +31,9 @@ function useStreak(username) {
     const stored = JSON.parse(localStorage.getItem(storageKey) || "null");
 
     if (!stored) {
-      // Initialize with 12 to preserve the user's previously hardcoded streak if they are new to the tracking system
-      localStorage.setItem(storageKey, JSON.stringify({ count: 12, lastVisit: todayStr }));
-      setStreak(12);
+      // First visit starts a streak of 1 day.
+      localStorage.setItem(storageKey, JSON.stringify({ count: 1, lastVisit: todayStr }));
+      setStreak(1);
     } else {
       const { count, lastVisit } = stored;
       if (lastVisit === todayStr) {
@@ -179,7 +179,26 @@ export default function Dashboard({
   onLevelOpen,
   onLogout,
   onUpdateProfile,
+  enrollments = [],
+  emailVerified = true,
+  onSwitchCourse,
+  onAddCourse,
 }) {
+  const [verifyMsg, setVerifyMsg] = useState("");
+  const [verifyBusy, setVerifyBusy] = useState(false);
+
+  async function resendVerification() {
+    setVerifyBusy(true);
+    try {
+      const res = await apiRequest("/api/auth/resend-verification", { method: "POST" });
+      setVerifyMsg(res.message || "Verification email sent.");
+    } catch (err) {
+      setVerifyMsg(err.message || "Could not send the email.");
+    } finally {
+      setVerifyBusy(false);
+    }
+  }
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [page, setPage] = useState(null); // null | "projects"
   const [dashboardVisible, setDashboardVisible] = useState(false);
@@ -377,6 +396,33 @@ export default function Dashboard({
               </div>
             </div>
 
+            {/* MY COURSES — Module 1.3 multi-course enrollment */}
+            <SidebarSection icon={<BookOpen size={16} />} title="My Courses" accent="blue">
+              <div className="space-y-1.5">
+                {enrollments.map((lang) => {
+                  const active = lang === language;
+                  return (
+                    <button
+                      key={lang}
+                      onClick={() => onSwitchCourse && onSwitchCourse(lang)}
+                      className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition-colors ${active ? "bg-[#EEF3FF] border border-[#C9D6FB]" : "hover:bg-[#F6F1FB] border border-transparent"}`}
+                    >
+                      <span className="text-lg shrink-0">{lang === "python" ? "🐍" : "⚡"}</span>
+                      <span className="text-xs font-bold text-accent flex-1 min-w-0 truncate">{lang === "python" ? "Python" : "C++"}</span>
+                      {active && <span className="text-[10px] font-black uppercase tracking-wide text-[#6E8BF5] shrink-0">Active</span>}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={onAddCourse}
+                  className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-[#F6F1FB] text-[#8B6FE8] transition-colors"
+                >
+                  <span className="w-7 h-7 rounded-lg bg-[#F0EBFC] flex items-center justify-center shrink-0"><Plus size={14} /></span>
+                  <span className="text-xs font-bold">Enroll in another course</span>
+                </button>
+              </div>
+            </SidebarSection>
+
             <SidebarSection icon={<Target size={16} />} title="Your Progress" accent="blue">
               <div className="space-y-3">
                 <div className="flex justify-between items-end gap-2">
@@ -453,6 +499,22 @@ export default function Dashboard({
         {/* SCROLLABLE AREA */}
         <div className="flex-1 overflow-y-auto p-8 lg:p-12">
           <div className="max-w-6xl mx-auto space-y-8 md:space-y-10">
+
+            {/* EMAIL VERIFICATION — Module 1.1 */}
+            {!emailVerified && (
+              <div className="rounded-2xl border-2 border-[#F7D9A8] bg-[#FFF7EA] p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-[#FDEBCB] text-[#C77800] flex items-center justify-center shrink-0"><Mail size={20} /></div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-accent">Verify your email address</div>
+                  <div className="text-sm text-accent/60 font-medium">
+                    {verifyMsg || `We sent a link to ${email}. You need a verified email to claim your certificate.`}
+                  </div>
+                </div>
+                <button onClick={resendVerification} disabled={verifyBusy} className="btn-game btn-secondary text-sm py-2 px-4 shrink-0">
+                  {verifyBusy ? "Sending..." : "Resend email"}
+                </button>
+              </div>
+            )}
 
             {/* KPI STATS */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">

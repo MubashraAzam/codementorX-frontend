@@ -525,7 +525,7 @@ export default function CodeMentorLanding({ onLogin, onRegister }) {
                       ref={loginUsernameRef}
                       type="text"
                       name="username"
-                      placeholder="Username"
+                      placeholder="Username or email"
                       value={loginData.username}
                       onChange={handleLoginChange}
                       className={getInputStatus(loginValidation.username)}
