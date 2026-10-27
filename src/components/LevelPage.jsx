@@ -2,12 +2,16 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowLeft, BookOpen, PenTool, ClipboardList, Lightbulb, 
-  ChevronRight, RefreshCw, Sparkles, Mic, Play, CheckCircle, 
-  Lock, Star, PlayCircle, StopCircle
+  ChevronRight, RefreshCw, Sparkles, CheckCircle, 
+  Lock, Star, Users
 } from "lucide-react";
 import { apiRequest } from "../utils/api";
 import { formatAIMarkdown } from "../utils/aiMarkdown";
 import { trackMeta } from "../utils/tracks";
+import { mentor } from "../utils/mentor";
+import HintLadder from "./HintLadder";
+import TutorChat from "./TutorChat";
+import PairProgramming from "./PairProgramming";
 
 const QUESTION_TYPE = {
   concept: { label: "Concept", cls: "bg-[#EEF3FF] text-[#4F6BD8]" },
@@ -61,18 +65,6 @@ function FloatingXP({ xp, x, y, onComplete }) {
 
 // Levels now come from the backend curriculum (Module 2.1) via the `levels` prop.
 
-async function callAI(prompt) {
-  try {
-    const data = await apiRequest("/api/ai/ask", {
-      method: "POST",
-      body: { prompt },
-    });
-    return data.text;
-  } catch (err) {
-    return `⚠️ AI request failed: ${err.message}`;
-  }
-}
-
 export default function LevelPage({
   username = "Student",
   language = "python",
@@ -89,9 +81,7 @@ export default function LevelPage({
   const [currentIdx, setCurrentIdx]   = useState(levelIndex);
   const [activeTab, setActiveTab]     = useState("lesson");
   const [uiLang, setUiLang]           = useState("English");
-  const [hintOpen, setHintOpen]       = useState(false);
-  const [generalHint, setGeneralHint] = useState(null);
-  const [generalHintLoading, setGeneralHintLoading] = useState(false);
+  const [aiError, setAiError]         = useState("");
 
   // Lesson state
   const [lessonContent, setLessonContent]   = useState(null);
@@ -99,13 +89,12 @@ export default function LevelPage({
   const [extraExample, setExtraExample]     = useState(null);
   const [extraLoading, setExtraLoading]     = useState(false);
 
-  // Practice state
-  const [practiceContent, setPracticeContent] = useState(null);
+  // Practice state (Module 3.1: structured exercises from the server)
+  const [practice, setPractice]             = useState(null); // { practiceId, exercises }
   const [practiceLoading, setPracticeLoading] = useState(false);
-  const [practiceHints, setPracticeHints]   = useState({});
   const [practiceSolutions, setPracticeSolutions] = useState({});
-  const [hintLoading, setHintLoading]       = useState({});
   const [solLoading, setSolLoading]         = useState({});
+  const [pairTask, setPairTask]             = useState(null); // exercise opened in pair programming
 
   // Gamification state
   const [xpPopups, setXpPopups] = useState([]);
@@ -121,8 +110,6 @@ export default function LevelPage({
   const [quizReveal, setQuizReveal] = useState({});      // step -> { correct, correctIndex, exp } from the server
   const [quizResult, setQuizResult] = useState(null);    // graded result from the server
   const [quizFinishing, setQuizFinishing] = useState(false);
-  const [quizHints, setQuizHints]   = useState({});       // keyed by quizStep
-  const [quizHintLoading, setQuizHintLoading] = useState({});
 
   const [earnedStars, setEarnedStars] = useState(
     progress.stars[levelIndex] || 0
@@ -138,9 +125,9 @@ export default function LevelPage({
     setActiveTab("lesson");
     setLessonContent(null);
     setExtraExample(null);
-    setPracticeContent(null);
-    setPracticeHints({});
+    setPractice(null);
     setPracticeSolutions({});
+    setPairTask(null);
     setQuizData(null);
     setQuizStep(0);
     setQuizAnswers([]);
@@ -149,36 +136,59 @@ export default function LevelPage({
     setQuizAttemptId(null);
     setQuizReveal({});
     setQuizResult(null);
-    setQuizHints({});
-    setQuizHintLoading({});
-    setHintOpen(false);
-    setGeneralHint(null);
-    setGeneralHintLoading(false);
+    setAiError("");
     setEarnedStars(progress.stars[currentIdx] || 0);
   }, [currentIdx]);
 
   useEffect(() => {
     if (isLocked) return;
     if (activeTab === "lesson" && !lessonContent && !lessonLoading) loadLesson();
-    if (activeTab === "practice" && !practiceContent && !practiceLoading) loadPractice();
+    if (activeTab === "practice" && !practice && !practiceLoading) loadPractice();
     if (activeTab === "quiz" && !quizData && !quizLoading) loadQuiz();
   }, [activeTab, currentIdx]);
 
-  async function loadLesson() {
+  // Module 3.1 — lessons and practice come from the server mentor (cached per level).
+  const ctx = { language, levelIndex: currentIdx, uiLang };
+
+  async function loadLesson(fresh = false) {
     setLessonLoading(true);
-    const prompt = `You are an expert ${meta.label} tutor. Create a comprehensive lesson on "${level.title}" covering: ${level.sub}. Include: clear explanation, key concepts, syntax examples with code blocks using \`\`\`${meta.codeLang} and \`\`\`, and a summary. ${uiLang === "Urdu" ? "Include brief Urdu explanations after key points." : ""}`;
-    const text = await callAI(prompt);
-    setLessonContent(text);
+    setAiError("");
+    try {
+      const res = await mentor("lesson", { ...ctx, fresh });
+      setLessonContent(res.text);
+    } catch (err) {
+      setAiError(err.message || "Could not load the lesson.");
+    }
     setLessonLoading(false);
   }
 
-  async function loadPractice() {
+  async function loadPractice(fresh = false) {
     setPracticeLoading(true);
-    const prompt = `Create 3 practice exercises for ${meta.label} "${level.title}" (${level.sub}). For each: give a numbered title, problem description, and expected output. Do NOT give the solution. ${uiLang === "Urdu" ? "Include Urdu instructions." : ""}`;
-    const text = await callAI(prompt);
-    setPracticeContent(text);
+    setAiError("");
+    try {
+      const res = await mentor("practice", { ...ctx, fresh });
+      setPractice({ practiceId: res.practiceId, exercises: res.exercises });
+      setPracticeSolutions({});
+    } catch (err) {
+      setAiError(err.message || "Could not load practice exercises.");
+    }
     setPracticeLoading(false);
   }
+
+  // Switching English/Urdu reloads the lesson and practice in that language.
+  function changeUiLang(next) {
+    if (next === uiLang) return;
+    setUiLang(next);
+    setLessonContent(null);
+    setExtraExample(null);
+    setPractice(null);
+  }
+  useEffect(() => {
+    if (isLocked) return;
+    if (activeTab === "lesson" && !lessonContent && !lessonLoading) loadLesson();
+    if (activeTab === "practice" && !practice && !practiceLoading) loadPractice();
+    // reload only when the language preference changes
+  }, [uiLang]);
 
   // The quiz is generated and graded on the server: the client only ever sees
   // questions and options, and learns the right answer after locking one in.
@@ -192,7 +202,6 @@ export default function LevelPage({
     setQuizStep(0);
     setQuizAnswers([]);
     setQuizDone(false);
-    setQuizHints({});
     try {
       const data = await apiRequest(`/api/assessment/${language}/${currentIdx}/start`, { method: "POST" });
       setQuizAttemptId(data.attemptId);
@@ -205,60 +214,36 @@ export default function LevelPage({
 
   async function getExtraExample() {
     setExtraLoading(true);
-    const prompt = `Give one additional creative real-world ${meta.label} example for "${level.title}". Use a code block. Keep it concise. ${uiLang === "Urdu" ? "Add Urdu explanation." : ""}`;
-    const text = await callAI(prompt);
-    setExtraExample(text);
+    setAiError("");
+    try {
+      setExtraExample((await mentor("example", ctx)).text);
+    } catch (err) {
+      setAiError(err.message || "Could not load an example.");
+    }
     setExtraLoading(false);
   }
 
-  async function getGeneralHint() {
-    if (generalHint || generalHintLoading) {
-      setHintOpen(!hintOpen);
-      return;
-    }
-    setHintOpen(true);
-    setGeneralHintLoading(true);
-    const prompt = `Give a short, encouraging hint for a student learning ${meta.label} "${level.title}". Do NOT give code solutions. Keep it to 2-3 sentences.`;
-    const text = await callAI(prompt);
-    setGeneralHint(text);
-    setGeneralHintLoading(false);
-  }
-
-  async function getQuizHint() {
-    const step = quizStep;
-    // Toggle closed if this question's hint is already loaded
-    if (quizHints[step] !== undefined) {
-      setQuizHints(h => {
-        const next = { ...h };
-        delete next[step];
-        return next;
-      });
-      return;
-    }
-    if (quizHintLoading[step]) return;
-    setQuizHintLoading(h => ({ ...h, [step]: true }));
-    const q = quizData[step];
-    const optionList = q.opts.map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join("; ");
-    const prompt = `A student is answering this ${meta.label} multiple-choice question about "${level.title}": "${q.q}"${q.code ? ` Code:\n${q.code}\n` : ""} Options: ${optionList}. Give a short 1-2 sentence hint that nudges them toward the right reasoning. Do NOT reveal or name the correct answer.`;
-    const text = await callAI(prompt);
-    setQuizHints(h => ({ ...h, [step]: text }));
-    setQuizHintLoading(h => ({ ...h, [step]: false }));
-  }
-
-  async function getPracticeHint(idx) {
-    setHintLoading(h => ({ ...h, [idx]: true }));
-    const prompt = `Give a helpful step-by-step hint for practice exercise ${idx + 1} about ${meta.label} "${level.title}". Do NOT give the full solution — just guide the student.`;
-    const text = await callAI(prompt);
-    setPracticeHints(h => ({ ...h, [idx]: text }));
-    setHintLoading(h => ({ ...h, [idx]: false }));
-  }
+  // Module 3.3 — each hint ladder asks the server for step 1, 2 or 3.
+  const lessonHint = async (step) => (await mentor("hint", { ...ctx, step, target: { type: "lesson" } })).text;
+  const quizHint = (index) => async (step) =>
+    (await mentor("hint", { ...ctx, step, target: { type: "quiz", attemptId: quizAttemptId, index } })).text;
+  const practiceHint = (index) => async (step) =>
+    (await mentor("hint", { ...ctx, step, target: { type: "practice", practiceId: practice.practiceId, index } })).text;
 
   async function getPracticeSolution(idx) {
-    setSolLoading(s => ({ ...s, [idx]: true }));
-    const prompt = `Provide the complete solution for practice exercise ${idx + 1} about ${meta.label} "${level.title}" with explanation.`;
-    const text = await callAI(prompt);
-    setPracticeSolutions(s => ({ ...s, [idx]: text }));
-    setSolLoading(s => ({ ...s, [idx]: false }));
+    setSolLoading((s) => ({ ...s, [idx]: true }));
+    try {
+      const res = await mentor("solution", { ...ctx, practiceId: practice.practiceId, index: idx });
+      setPracticeSolutions((s) => ({ ...s, [idx]: res.text }));
+    } catch (err) {
+      setAiError(err.message || "Could not load the solution.");
+    }
+    setSolLoading((s) => ({ ...s, [idx]: false }));
+  }
+
+  function openInPair(exercise) {
+    setPairTask(exercise);
+    setActiveTab("pair");
   }
 
   async function answerQ(optIdx, event) {
@@ -337,6 +322,11 @@ export default function LevelPage({
       exit={{ opacity: 0, x: -20 }}
       className="flex flex-col h-screen bg-background"
     >
+      {/* +XP pop-ups for correct answers */}
+      {xpPopups.map((p) => (
+        <FloatingXP key={p.id} xp={p.xp} x={p.x} y={p.y} onComplete={() => setXpPopups((prev) => prev.filter((z) => z.id !== p.id))} />
+      ))}
+
       {/* HEADER */}
       <div className="h-20 bg-white/70 backdrop-blur-xl border-b border-[#ECE7F4] flex items-center justify-between px-6 shrink-0 z-20">
         <div className="flex items-center gap-4">
@@ -354,7 +344,14 @@ export default function LevelPage({
             <h1 className="text-lg font-heading font-black text-accent tracking-tight">{level.title}</h1>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex rounded-lg bg-gray-100 p-0.5 text-xs font-bold" role="group" aria-label="Explanation language">
+            {["English", "Urdu"].map((l) => (
+              <button key={l} onClick={() => changeUiLang(l)} className={`px-2.5 py-1 rounded-md transition-colors ${uiLang === l ? "bg-white text-[#8B6FE8] shadow-sm" : "text-gray-500 hover:text-accent"}`}>
+                {l === "Urdu" ? "اردو" : "EN"}
+              </button>
+            ))}
+          </div>
           <div className="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg font-bold text-sm hidden sm:block">
             {langLabel}
           </div>
@@ -367,16 +364,17 @@ export default function LevelPage({
       </div>
 
       {/* TABS */}
-      <div className={`${isLocked ? "hidden" : "flex"} bg-white/70 backdrop-blur-xl border-b border-[#ECE7F4] px-6 gap-6 pt-2 shrink-0`}>
+      <div className={`${isLocked ? "hidden" : "flex"} bg-white/70 backdrop-blur-xl border-b border-[#ECE7F4] px-4 sm:px-6 gap-4 sm:gap-6 pt-2 shrink-0 overflow-x-auto`}>
         {[
           { id: "lesson", label: "Lesson", icon: <BookOpen size={18}/> },
           { id: "practice", label: "Practice", icon: <PenTool size={18}/> },
+          { id: "pair", label: "Pair Programming", icon: <Users size={18}/> },
           { id: "quiz", label: "Quiz", icon: <ClipboardList size={18}/> },
         ].map(tab => (
           <button
             key={tab.id}
-            onClick={() => { setActiveTab(tab.id); setHintOpen(false); }}
-            className={`flex items-center gap-2 pb-3 px-2 font-bold text-sm border-b-4 transition-colors ${activeTab === tab.id ? "border-[#8B6FE8] text-[#8B6FE8]" : "border-transparent text-gray-400 hover:text-gray-600"}`}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 pb-3 px-2 font-bold text-sm whitespace-nowrap border-b-4 transition-colors ${activeTab === tab.id ? "border-[#8B6FE8] text-[#8B6FE8]" : "border-transparent text-gray-400 hover:text-gray-600"}`}
           >
             {tab.icon} {tab.label}
           </button>
@@ -385,7 +383,10 @@ export default function LevelPage({
 
       {/* CONTENT AREA */}
       <div className="flex-1 overflow-y-auto p-6 md:p-10 relative">
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className={`${activeTab === "pair" && !isLocked ? "max-w-7xl" : "max-w-4xl"} mx-auto space-y-6`}>
+          {aiError && !isLocked && (
+            <div className="bg-red-50 border-2 border-red-200 text-red-700 rounded-2xl p-4 font-medium text-sm">{aiError}</div>
+          )}
           {isLocked && (
             <div className="bg-white rounded-3xl p-10 border border-[#ECE7F4] text-center">
               <div className="w-16 h-16 mx-auto rounded-2xl bg-gray-100 text-gray-400 flex items-center justify-center"><Lock size={30} /></div>
@@ -404,11 +405,11 @@ export default function LevelPage({
               <motion.div key="lesson" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
                 <div className="bg-white rounded-3xl p-8 border border-[#ECE7F4] shadow-sm min-h-[300px]">
                   {lessonLoading ? (
-                    <LoadingDots label="Generating your lesson..." />
+                    <LoadingDots label="Preparing your lesson..." />
                   ) : lessonContent ? (
-                    <div className="max-w-none" dangerouslySetInnerHTML={{ __html: formatAIMarkdown(lessonContent) }} />
+                    <div className="max-w-none" dir="auto" dangerouslySetInnerHTML={{ __html: formatAIMarkdown(lessonContent) }} />
                   ) : (
-                    <div className="text-gray-500 font-medium">Click Regenerate to load lesson.</div>
+                    <button className="btn-game btn-secondary" onClick={() => loadLesson()}><RefreshCw size={18}/> Load lesson</button>
                   )}
                 </div>
 
@@ -421,29 +422,18 @@ export default function LevelPage({
                 )}
 
                 <div className="flex flex-wrap gap-4">
-                  <button className="btn-game btn-secondary" onClick={getGeneralHint} disabled={generalHintLoading}>
-                    {generalHintLoading ? <RefreshCw className="animate-spin" size={18}/> : <Lightbulb size={18}/>} Hint
-                  </button>
                   <button className="btn-game btn-secondary" onClick={getExtraExample} disabled={extraLoading}><Sparkles size={18}/> More Examples</button>
-                  <button className="btn-game btn-secondary" onClick={() => { setLessonContent(null); setExtraExample(null); loadLesson(); }}><RefreshCw size={18}/> Regenerate</button>
+                  <button className="btn-game btn-secondary" onClick={() => { setExtraExample(null); loadLesson(true); }} disabled={lessonLoading}><RefreshCw size={18}/> Regenerate</button>
                   <button className="btn-game btn-cute ml-auto" onClick={() => setActiveTab("quiz")}>Take Quiz <ChevronRight size={18}/></button>
                 </div>
 
-                {hintOpen && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="bg-warning/10 border-2 border-warning/30 rounded-2xl p-6 flex gap-3 items-start">
-                    <Lightbulb size={18} className="text-warning shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-heading font-bold text-warning mb-1 uppercase text-xs tracking-wider">Hint from AI Tutor</h4>
-                      {generalHintLoading ? (
-                        <div className="text-sm text-warning font-medium flex items-center gap-2"><RefreshCw className="animate-spin" size={14}/> Generating hint...</div>
-                      ) : (
-                        <div className="text-accent/80 font-medium text-sm" dangerouslySetInnerHTML={{ __html: formatAIMarkdown(generalHint || "") }} />
-                      )}
-                    </div>
-                  </motion.div>
-                )}
+                <div className="bg-white rounded-3xl p-6 border border-[#ECE7F4]">
+                  <h3 className="font-heading font-black text-accent mb-1">Stuck on this topic?</h3>
+                  <p className="text-sm text-gray-500 font-medium mb-4">Hints get more specific each time, so you can work it out yourself.</p>
+                  <HintLadder key={`lesson-${currentIdx}-${uiLang}`} fetchHint={lessonHint} compact />
+                </div>
 
-                <VoiceBar onSpeak={speakContent} uiLang={uiLang} onLangChange={setUiLang} level={level} language={language} />
+                <TutorChat key={`${language}-${currentIdx}`} language={language} levelIndex={currentIdx} uiLang={uiLang} onSpeak={speakContent} />
               </motion.div>
             )}
 
@@ -452,45 +442,62 @@ export default function LevelPage({
               <motion.div key="practice" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
                 <div className="bg-white rounded-3xl p-8 border border-[#ECE7F4]">
                   <h3 className="font-heading font-black text-xl text-accent mb-2">Practice Exercises</h3>
-                  <p className="text-gray-500 font-medium">Work through these exercises in your code editor. Use hints if you get stuck!</p>
+                  <p className="text-gray-500 font-medium">Solve each exercise yourself. Open it in Pair Programming to code with your AI partner, and use the hints only when you are stuck.</p>
                 </div>
 
-                {practiceLoading ? (
-                  <div className="bg-white rounded-3xl p-8 border border-[#ECE7F4]"><LoadingDots label="Generating practice exercises..." /></div>
-                ) : practiceContent && (
-                  <div className="bg-white rounded-3xl p-8 border border-[#ECE7F4]">
-                    <div className="max-w-none" dangerouslySetInnerHTML={{ __html: formatAIMarkdown(practiceContent) }} />
-                  </div>
+                {practiceLoading && (
+                  <div className="bg-white rounded-3xl p-8 border border-[#ECE7F4]"><LoadingDots label="Preparing practice exercises..." /></div>
                 )}
 
-                {[0, 1, 2].map(idx => (
-                  <div key={idx} className="bg-white rounded-3xl p-6 border border-[#ECE7F4]">
-                    <h4 className="font-bold text-accent mb-4">Exercise {idx + 1} Helpers</h4>
-                    <div className="flex gap-4 mb-4">
-                      <button className="btn-game btn-secondary text-sm py-2 px-4" onClick={() => getPracticeHint(idx)} disabled={hintLoading[idx]}><Lightbulb size={16}/> Hint</button>
-                      <button className="btn-game btn-secondary text-sm py-2 px-4" onClick={() => getPracticeSolution(idx)} disabled={solLoading[idx]}><CheckCircle size={16}/> Solution</button>
+                {!practiceLoading && practice?.exercises?.map((ex, idx) => (
+                  <div key={`${practice.practiceId}-${idx}`} className="bg-white rounded-3xl p-6 border border-[#ECE7F4] space-y-4">
+                    <div className="flex items-start gap-3">
+                      <span className="w-8 h-8 rounded-lg bg-[#F0EBFC] text-[#8B6FE8] font-black flex items-center justify-center shrink-0">{idx + 1}</span>
+                      <div className="min-w-0">
+                        <h4 className="font-heading font-black text-accent">{ex.title}</h4>
+                        <p className="text-accent/80 font-medium whitespace-pre-wrap mt-1" dir="auto">{ex.description}</p>
+                      </div>
                     </div>
-                    {hintLoading[idx] && <LoadingDots label="Generating hint..." />}
-                    {practiceHints[idx] && (
-                      <div className="bg-warning/10 border-2 border-warning/30 rounded-xl p-4 mt-2">
-                        <div className="text-warning font-heading font-bold mb-2 flex items-center gap-1.5 text-sm"><Lightbulb size={16}/> Hint</div>
-                        <div className="text-sm" dangerouslySetInnerHTML={{ __html: formatAIMarkdown(practiceHints[idx]) }} />
+                    {ex.expectedOutput && (
+                      <div>
+                        <div className="text-xs font-black uppercase tracking-wide text-gray-400 mb-1">Expected output</div>
+                        <pre className="bg-[#1E2235] text-[#E6E9F5] rounded-xl p-3 text-sm overflow-x-auto font-mono whitespace-pre-wrap">{ex.expectedOutput}</pre>
                       </div>
                     )}
-                    {solLoading[idx] && <LoadingDots label="Generating solution..." />}
+                    <div className="flex flex-wrap gap-3">
+                      <button className="btn-game btn-cute text-sm py-2 px-4" onClick={() => openInPair(ex)}><Users size={16}/> Code it with AI partner</button>
+                      <button className="btn-game btn-secondary text-sm py-2 px-4" onClick={() => getPracticeSolution(idx)} disabled={solLoading[idx] || !!practiceSolutions[idx]}><CheckCircle size={16}/> Show solution</button>
+                    </div>
+                    <HintLadder fetchHint={practiceHint(idx)} compact />
+                    {solLoading[idx] && <LoadingDots label="Writing the solution..." />}
                     {practiceSolutions[idx] && (
-                      <div className="bg-success/10 border-2 border-success/30 rounded-xl p-4 mt-2">
+                      <div className="bg-success/10 border-2 border-success/30 rounded-xl p-4">
                         <div className="text-success font-heading font-bold mb-2 flex items-center gap-1.5 text-sm"><CheckCircle size={16}/> Solution</div>
-                        <div className="text-sm" dangerouslySetInnerHTML={{ __html: formatAIMarkdown(practiceSolutions[idx]) }} />
+                        <div className="text-sm" dir="auto" dangerouslySetInnerHTML={{ __html: formatAIMarkdown(practiceSolutions[idx]) }} />
                       </div>
                     )}
                   </div>
                 ))}
 
                 <div className="flex justify-between pt-4">
-                  <button className="btn-game btn-secondary" onClick={() => { setPracticeContent(null); loadPractice(); }}><RefreshCw size={18}/> More Exercises</button>
+                  <button className="btn-game btn-secondary" onClick={() => loadPractice(true)} disabled={practiceLoading}><RefreshCw size={18}/> New Exercises</button>
                   <button className="btn-game btn-cute" onClick={() => setActiveTab("quiz")}>Ready for Quiz <ChevronRight size={18}/></button>
                 </div>
+              </motion.div>
+            )}
+
+            {/* PAIR PROGRAMMING TAB — Module 3.2 */}
+            {activeTab === "pair" && (
+              <motion.div key="pair" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                <PairProgramming
+                  key={`${language}-${currentIdx}-${pairTask?.title || ""}`}
+                  language={language}
+                  levelIndex={currentIdx}
+                  levelTitle={level.title}
+                  uiLang={uiLang}
+                  task={pairTask}
+                  onClearTask={() => setPairTask(null)}
+                />
               </motion.div>
             )}
 
@@ -575,20 +582,13 @@ export default function LevelPage({
                       </motion.div>
                     )}
 
-                    {quizHintLoading[quizStep] && (
-                      <div className="mt-6"><LoadingDots label="Generating hint..." /></div>
-                    )}
-                    {quizHints[quizStep] && (
-                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 bg-warning/10 border-2 border-warning/30 rounded-xl p-4">
-                        <div className="text-warning font-heading font-bold mb-2 flex items-center gap-1.5 text-sm"><Lightbulb size={16}/> Hint</div>
-                        <div className="text-sm text-accent/80 font-medium" dangerouslySetInnerHTML={{ __html: formatAIMarkdown(quizHints[quizStep]) }} />
-                      </motion.div>
+                    {quizAnswers[quizStep] === undefined && quizAttemptId && (
+                      <div className="mt-6">
+                        <HintLadder key={`${quizAttemptId}-${quizStep}`} fetchHint={quizHint(quizStep)} compact />
+                      </div>
                     )}
 
-                    <div className="flex justify-between items-center mt-8 pt-6 border-t-2 border-gray-100">
-                      <button className="btn-game btn-secondary text-sm py-2 px-4" onClick={getQuizHint} disabled={quizHintLoading[quizStep] || quizAnswers[quizStep] !== undefined}>
-                        {quizHintLoading[quizStep] ? <RefreshCw className="animate-spin" size={16}/> : <Lightbulb size={16}/>} Hint
-                      </button>
+                    <div className="flex justify-end items-center mt-8 pt-6 border-t-2 border-gray-100">
                       {quizReveal[quizStep] && (
                         <button className="btn-game btn-cute" onClick={nextQ} disabled={quizFinishing}>
                           {quizFinishing ? "Grading..." : quizStep === quizData.length - 1 ? "Finish" : "Next"} <ChevronRight size={18}/>
@@ -646,85 +646,6 @@ export default function LevelPage({
         </button>
       </div>
     </motion.div>
-  );
-}
-
-function VoiceBar({ onSpeak, uiLang, onLangChange, level, language }) {
-  const [question, setQuestion]   = useState("");
-  const [answer, setAnswer]       = useState(null);
-  const [asking, setAsking]       = useState(false);
-  const [recording, setRecording] = useState(false);
-  const recognitionRef = useRef(null);
-
-  useEffect(() => {
-    return () => { if (recognitionRef.current) recognitionRef.current.stop(); };
-  }, []);
-
-  function toggleRecording() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
-
-    if (recording) {
-      recognitionRef.current && recognitionRef.current.stop();
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = uiLang === "Urdu" ? "ur-PK" : "en-US";
-    recognition.onresult = (e) => setQuestion(prev => `${prev} ${e.results[0][0].transcript}`);
-    recognition.onend = () => setRecording(false);
-    recognitionRef.current = recognition;
-    recognition.start();
-    setRecording(true);
-  }
-
-  async function submitQuestion() {
-    if (!question.trim() || asking) return;
-    setAsking(true);
-    setAnswer(null);
-    const text = await callAI(`Student asks about "${level.title}": "${question}". Explain simply.`);
-    setAnswer(text);
-    setAsking(false);
-  }
-
-  return (
-    <div className="bg-[#8B6FE8]/5 border-2 border-[#8B6FE8]/20 rounded-3xl p-6 mt-8 shadow-sm">
-      <div className="flex items-center gap-2 mb-4">
-        <Sparkles size={18} className="text-[#8B6FE8]" />
-        <h3 className="font-heading font-black text-accent text-sm uppercase tracking-wide">Ask the AI Tutor</h3>
-      </div>
-      <div className="flex flex-col sm:flex-row items-center gap-4 mb-4">
-        <div className="flex gap-2">
-          <button onClick={onSpeak} className="w-12 h-12 bg-white rounded-full flex items-center justify-center border-2 border-[#8B6FE8]/30 text-accent hover:scale-105 hover:bg-[#8B6FE8]/10 transition-all shadow-sm">
-            <Play size={20} className="ml-1"/>
-          </button>
-          <button onClick={toggleRecording} className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all shadow-sm ${recording ? 'bg-danger border-danger text-white animate-pulse' : 'bg-white border-[#8B6FE8]/30 text-accent hover:scale-105 hover:bg-[#8B6FE8]/10'}`}>
-            {recording ? <StopCircle size={20}/> : <Mic size={20}/>}
-          </button>
-        </div>
-        <div className="flex-1 w-full flex bg-white rounded-2xl border-2 border-[#8B6FE8]/20 overflow-hidden shadow-inner">
-          <input
-            type="text"
-            value={question}
-            onChange={e => setQuestion(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && submitQuestion()}
-            placeholder="Ask AI tutor..."
-            className="flex-1 bg-transparent border-none outline-none px-4 py-3 text-sm font-medium text-accent"
-          />
-          <button onClick={submitQuestion} disabled={asking || !question.trim()} className="bg-[#8B6FE8] text-white font-bold px-6 py-3 text-sm hover:bg-[#7B5FE0] disabled:opacity-50 transition-colors">
-            Ask
-          </button>
-        </div>
-      </div>
-
-      {asking && <LoadingDots label="Tutor is thinking..." />}
-      {answer && !asking && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-5 border-2 border-[#8B6FE8]/15 mt-4 relative">
-          <div className="absolute -top-3 left-4 bg-[#8B6FE8] text-white text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg shadow-sm">AI Response</div>
-          <div className="max-w-none pt-1" dangerouslySetInnerHTML={{ __html: formatAIMarkdown(answer) }} />
-        </motion.div>
-      )}
-    </div>
   );
 }
 
