@@ -1,8 +1,9 @@
 import React, { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, CheckCircle, Upload, Lock, Award, PlayCircle, RefreshCw, Star, Printer, XCircle, ShieldCheck, QrCode as QrIcon, ExternalLink, Calendar, Mail, Phone } from "lucide-react";
+import { ArrowLeft, CheckCircle, Upload, Code2, AlertTriangle, Lock, Award, PlayCircle, RefreshCw, Star, Printer, XCircle, ShieldCheck, QrCode as QrIcon, ExternalLink, Calendar, Mail, Phone } from "lucide-react";
 import QRCode from "qrcode";
 import { apiRequest } from "../utils/api";
+import ProjectEditorModal from "./ProjectEditorModal";
 import { trackMeta } from "../utils/tracks";
 import codementorLogo from "../assets/codementor-logo.png";
 
@@ -40,6 +41,13 @@ function ConfettiBurst() {
 
 // Projects come from the backend curriculum (Module 2.1) via the `projects` prop.
 
+// Card status from the server's saved result for a project.
+function statusOf(p) {
+  if (!p) return "unsolved";
+  if (p.flagged) return "flagged";
+  return (p.stars || 0) >= 2 ? "solved" : "needs_retry";
+}
+
 const diffColor = {
   Easy:   "bg-green-100 text-green-700 border-green-200",
   Medium: "bg-orange-100 text-orange-700 border-orange-200",
@@ -48,11 +56,11 @@ const diffColor = {
 
 // The server reviews the code against its own copy of the project requirements
 // and saves the result itself; the browser never sends a star rating.
-async function reviewCodeWithAI(fileContent, fileName, language, projectId) {
+async function reviewCodeWithAI(fileContent, fileName, language, projectId, source = "upload") {
   try {
     const data = await apiRequest("/api/ai/review-project", {
       method: "POST",
-      body: { code: fileContent, fileName, language, projectId },
+      body: { code: fileContent, fileName, language, projectId, source },
     });
     return { ...data, ok: true };
   } catch (err) {
@@ -70,6 +78,7 @@ export default function Certificate({ username = "Student", email = "", profile 
   const [projectState, setProjectState] = useState({});
   const [reviewingId, setReviewingId] = useState(null);
   const fileInputRefs = useRef({});
+  const [editorProject, setEditorProject] = useState(null); // project open in the code editor
 
   // Interview state
   const [callState, setCallState] = useState("idle");
@@ -137,10 +146,12 @@ export default function Certificate({ username = "Student", email = "", profile 
         const restored = {};
         for (const [projId, p] of Object.entries(saved)) {
           restored[projId] = {
-            status: (p?.stars || 0) >= 2 ? "solved" : "needs_retry",
+            status: statusOf(p),
             stars: p?.stars || 0,
             feedback: p?.feedback || null,
             fileName: p?.fileName || null,
+            rubric: p?.rubric || null,
+            similarity: p?.similarity || 0,
           };
         }
         setProjectState(restored);
@@ -185,38 +196,41 @@ export default function Certificate({ username = "Student", email = "", profile 
     }
   }, [initialView, interviewStarted, interviewCompleted, interviewPassed, certificate]);
 
-  const solvedIds = Object.keys(projectState).filter(id => (projectState[id]?.stars || 0) >= 2);
+  const solvedIds = Object.keys(projectState).filter(id => projectState[id]?.status === "solved");
   const solvedCount = solvedIds.length;
+
+  // Module 4.3 / 4.4 — send code for AI review. The server's saved best result
+  // decides the card's status; this attempt's rubric and similarity are shown too.
+  async function submitForReview(projId, content, fileName, source) {
+    setProjectState(prev => ({ ...prev, [projId]: { ...(prev[projId] || {}), status: "submitted", fileName } }));
+    setReviewingId(projId);
+    const result = await reviewCodeWithAI(content, fileName, language, projId, source);
+    setProjectState(prev => {
+      const best = result.ok ? result.best : null;
+      return {
+        ...prev,
+        [projId]: {
+          status: best ? statusOf(best) : (prev[projId]?.stars >= 2 ? "solved" : "needs_retry"),
+          fileName,
+          stars: best ? best.stars : (prev[projId]?.stars || 0),
+          feedback: result.feedback,
+          rubric: result.rubric || null,
+          similarity: result.similarity || 0,
+          lastFlagged: !!result.flagged,
+          similarityWarning: !!result.similarityWarning,
+        },
+      };
+    });
+    setReviewingId(null);
+  }
 
   function handleFilePicked(projId, e) {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = async ev => {
-      const content = ev.target.result;
-      setProjectState(prev => ({
-        ...prev,
-        [projId]: { status: "submitted", fileName: file.name, stars: 0, feedback: null },
-      }));
-      setReviewingId(projId);
-      const result = await reviewCodeWithAI(content, file.name, language, projId);
-      // The saved (best) result decides whether the project counts as solved;
-      // this upload's own rating and feedback are still shown to the student.
-      const bestStars = result.ok ? Math.max(result.best?.stars || 0, result.stars) : (projectState[projId]?.stars || 0);
-      setProjectState(prev => ({
-        ...prev,
-        [projId]: {
-          status: bestStars >= 2 ? "solved" : "needs_retry",
-          fileName: file.name,
-          stars: bestStars,
-          lastStars: result.stars,
-          feedback: result.feedback,
-        },
-      }));
-      setReviewingId(null);
-      e.target.value = "";
-    };
+    reader.onload = (ev) => submitForReview(projId, ev.target.result, file.name, "upload");
     reader.readAsText(file);
+    e.target.value = "";
   }
 
   // One Dograh voice agent per track. Java, JavaScript and React need their own
@@ -466,6 +480,7 @@ export default function Certificate({ username = "Student", email = "", profile 
                         {proj.id + 1}
                       </div>
                       {isSolved && <div className="bg-success text-white text-xs font-black px-3 py-1 rounded-full flex items-center gap-1"><CheckCircle size={12}/> SOLVED</div>}
+                      {st.status === "flagged" && <div className="bg-[#C77800] text-white text-xs font-black px-3 py-1 rounded-full flex items-center gap-1"><AlertTriangle size={12}/> UNDER REVIEW</div>}
                     </div>
                     <h3 className="font-heading font-black text-lg text-accent mb-2">{proj.title}</h3>
                     <div className={`inline-block border-2 px-3 py-1 rounded-lg text-xs font-bold mb-4 ${diffColor[proj.difficulty]}`}>
@@ -483,8 +498,33 @@ export default function Certificate({ username = "Student", email = "", profile 
                     )}
 
                     {st.feedback && (
-                      <div className={`p-3 rounded-xl border-2 text-sm font-medium mb-6 ${isSolved ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                      <div className={`p-3 rounded-xl border-2 text-sm font-medium mb-4 ${isSolved ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
                         {isSolved ? "✅ " : "⚠️ "}{st.feedback}
+                      </div>
+                    )}
+
+                    {st.rubric && (
+                      <div className="mb-4 space-y-1.5" aria-label="Review rubric">
+                        {[["requirements", "Requirements"], ["correctness", "Correctness"], ["quality", "Code quality"], ["structure", "Structure"]].map(([k, label]) => (
+                          <div key={k} className="flex items-center gap-2 text-xs font-bold text-accent">
+                            <span className="w-24 shrink-0">{label}</span>
+                            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full" style={{ width: `${(st.rubric[k] || 0) * 10}%`, background: st.rubric[k] >= 7 ? "#2E9D62" : st.rubric[k] >= 5 ? "#F49B00" : "#E5484D" }} />
+                            </div>
+                            <span className="w-8 text-right">{st.rubric[k]}/10</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {(st.lastFlagged || st.status === "flagged") && (
+                      <div className="p-3 rounded-xl border-2 border-[#F7D9A8] bg-[#FFF7EA] text-[#8A5300] text-sm font-medium mb-4">
+                        This code is {Math.round((st.similarity || 0) * 100)}% similar to another student's earlier submission, so it does not count until an admin reviews it. Submit your own work to count it now.
+                      </div>
+                    )}
+                    {st.similarityWarning && !st.lastFlagged && (
+                      <div className="p-3 rounded-xl border-2 border-[#F7D9A8] bg-[#FFF7EA] text-[#8A5300] text-xs font-medium mb-4">
+                        Note: parts of this code look similar to another submission ({Math.round(st.similarity * 100)}%). Make sure the work is your own.
                       </div>
                     )}
                   </div>
@@ -497,7 +537,14 @@ export default function Certificate({ username = "Student", email = "", profile 
                       className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border-b-4 ${isReviewing ? 'bg-gray-100 text-gray-400 border-gray-200' : isSolved ? 'bg-green-50 text-success border-green-200 hover:bg-green-100' : needsRetry ? 'bg-red-50 text-danger border-red-200 hover:bg-red-100' : 'bg-[#8B6FE8] text-white border-[#7B5FE0] hover:bg-[#7B5FE0]'}`}
                     >
                       {isReviewing ? <RefreshCw size={16} className="animate-spin"/> : isSolved ? <CheckCircle size={16}/> : needsRetry ? <XCircle size={16}/> : <Upload size={16}/>}
-                      {isReviewing ? "Reviewing..." : isSolved ? "Re-upload Solution" : needsRetry ? "Try Again" : "Upload Solution"}
+                      {isReviewing ? "Reviewing..." : isSolved ? "Re-upload Solution" : needsRetry ? "Upload Again" : "Upload Solution"}
+                    </button>
+                    <button
+                      disabled={isReviewing}
+                      onClick={() => setEditorProject(proj)}
+                      className="w-full mt-2 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 text-sm border-2 border-[#E0D5F7] text-[#8B6FE8] bg-[#F7F4FE] hover:bg-[#EFE9FD] disabled:opacity-50"
+                    >
+                      <Code2 size={16}/> Write & run in editor
                     </button>
                   </div>
                 </div>
@@ -506,6 +553,15 @@ export default function Certificate({ username = "Student", email = "", profile 
           </div>
         </div>
       </div>
+      {editorProject && (
+        <ProjectEditorModal
+          language={language}
+          project={editorProject}
+          extension={projectExtensions[0] || ".txt"}
+          onClose={() => setEditorProject(null)}
+          onSubmit={(code, fileName) => { const id = editorProject.id; setEditorProject(null); submitForReview(id, code, fileName, "editor"); }}
+        />
+      )}
     </PageWrapper>
   );
 

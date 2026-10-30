@@ -368,7 +368,7 @@ export default function LevelPage({
         {[
           { id: "lesson", label: "Lesson", icon: <BookOpen size={18}/> },
           { id: "practice", label: "Practice", icon: <PenTool size={18}/> },
-          { id: "pair", label: "Pair Programming", icon: <Users size={18}/> },
+          { id: "pair", label: "Code Lab", icon: <Users size={18}/> },
           { id: "quiz", label: "Quiz", icon: <ClipboardList size={18}/> },
         ].map(tab => (
           <button
@@ -442,7 +442,7 @@ export default function LevelPage({
               <motion.div key="practice" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
                 <div className="bg-white rounded-3xl p-8 border border-[#ECE7F4]">
                   <h3 className="font-heading font-black text-xl text-accent mb-2">Practice Exercises</h3>
-                  <p className="text-gray-500 font-medium">Solve each exercise yourself. Open it in Pair Programming to code with your AI partner, and use the hints only when you are stuck.</p>
+                  <p className="text-gray-500 font-medium">Solve each exercise yourself. Open it in the Code Lab to write, run and test it with your AI partner. Use the hints only when you are stuck.</p>
                 </div>
 
                 {practiceLoading && (

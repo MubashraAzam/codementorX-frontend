@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Users, Send, Search, Bug, Lightbulb, Wand2, Trash2, X, FileCode } from "lucide-react";
 import CodeEditor from "./CodeEditor";
+import RunPanel from "./RunPanel";
 import { formatAIMarkdown } from "../utils/aiMarkdown";
 import { mentor } from "../utils/mentor";
 
 /**
- * Module 3.2 — AI Pair Programming Mode.
+ * Code Lab: Module 4.1 in-browser IDE (editor + Run + Visualize) together
+ * with Module 3.2 — AI Pair Programming Mode.
  * Split screen: the student's code on the left, the AI mentor on the right.
  * The mentor sees the current code (and the task, if one is loaded) with every
  * message, and guides with hints instead of writing the whole solution.
@@ -42,7 +44,7 @@ export default function PairProgramming({ language, levelIndex, levelTitle, uiLa
   useEffect(() => { save(key, code); }, [key, code]);
   useEffect(() => { endRef.current?.scrollIntoView({ block: "nearest" }); }, [messages, busy]);
 
-  async function ask(action, text) {
+  async function ask(action, text, errorOverride) {
     if (busy) return;
     if (action !== "chat" && !code.trim()) { setProblem("Write some code in the editor first."); return; }
     if (action === "chat" && !text.trim()) return;
@@ -55,7 +57,7 @@ export default function PairProgramming({ language, levelIndex, levelTitle, uiLa
       const res = await mentor("pair", {
         language, levelIndex, uiLang, action, code,
         message: action === "chat" ? text : "",
-        error: showError ? errorText : "",
+        error: errorOverride ?? (showError ? errorText : ""),
         task: task ? `${task.title}\n${task.description}${task.expectedOutput ? `\nExpected output: ${task.expectedOutput}` : ""}` : "",
         history,
       });
@@ -73,8 +75,8 @@ export default function PairProgramming({ language, levelIndex, levelTitle, uiLa
       <div className="bg-white rounded-3xl p-6 border border-[#ECE7F4] flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white shrink-0" style={{ background: "linear-gradient(135deg,#6E8BF5,#9B7DF0)" }}><Users size={22} /></div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-heading font-black text-accent">AI Pair Programming</h3>
-          <p className="text-sm text-gray-500 font-medium">Write code on the left. Your AI partner on the right sees your code and guides you without taking over.</p>
+          <h3 className="font-heading font-black text-accent">Code Lab · AI Pair Programming</h3>
+          <p className="text-sm text-gray-500 font-medium">Write and run your code on the left. Your AI partner on the right sees your code and guides you without taking over.</p>
         </div>
       </div>
 
@@ -100,7 +102,16 @@ export default function PairProgramming({ language, levelIndex, levelTitle, uiLa
             <span>Your code · Level {levelIndex + 1}: {levelTitle}</span>
             {code && <button onClick={() => setCode("")} className="flex items-center gap-1 hover:text-accent normal-case"><Trash2 size={12} /> Clear</button>}
           </div>
-          <CodeEditor value={code} onChange={setCode} language={language} height="440px" ariaLabel="Pair programming code editor" />
+          <CodeEditor value={code} onChange={setCode} language={language} height="380px" ariaLabel="Code Lab editor" />
+          <RunPanel
+            language={language}
+            code={code}
+            onError={(err) => {
+              setErrorText(err);
+              setShowError(true);
+              ask("chat", "I got this error when I ran my code. What does it mean and how do I fix it?", err);
+            }}
+          />
           <label className="flex items-center gap-2 text-sm font-bold text-accent/70 cursor-pointer select-none">
             <input type="checkbox" checked={showError} onChange={(e) => setShowError(e.target.checked)} />
             I got an error or wrong output
