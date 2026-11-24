@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { FaGoogle, FaFacebook, FaGithub, FaLinkedin } from "react-icons/fa";
 import { apiRequest, saveToken } from "../utils/api";
 import codementorLogo from "../assets/codementor-logo.png";
+import PinkLanding from "./landing/PinkLanding";
+import "./landing/authModal.css";
 
 /* ------------------------------------------------------------------ */
 /* Validation helpers (unchanged logic)                                */
@@ -277,357 +279,144 @@ export default function CodeMentorLanding({ onLogin, onRegister }) {
       />
       <style>{css}</style>
 
-      {/* AMBIENT BACKGROUND */}
-      <div className="cmx-ambient-bg">
-        <div className="cmx-orb orb-1" />
-        <div className="cmx-orb orb-2" />
-        <div className="cmx-orb orb-3" />
-      </div>
-
-      {/* ============================= NAV ============================= */}
-      <div className={`cmx-nav ${scrolled ? "scrolled" : ""}`}>
-        <button type="button" className="cmx-logo" onClick={() => scrollToSection("home")}>
-          <span className="cmx-diamond"><img src={codementorLogo} alt="CodeMentor-X logo" /></span>
-          <b>CodeMentor-X</b>
-        </button>
-        <div className="cmx-nav-links">
-          <button type="button" className="cmx-nav-link" onClick={() => scrollToSection("features")}>Features</button>
-          <button type="button" className="cmx-nav-link" onClick={() => scrollToSection("languages")}>Languages</button>
-          <button type="button" className="cmx-nav-link" onClick={() => scrollToSection("how-it-works")}>How it works</button>
-          <button type="button" className="cmx-nav-link" onClick={() => scrollToSection("about")}>About</button>
-        </div>
-        <div className="cmx-nav-actions">
-          <button className="cmx-nbtn login" onClick={() => openAuth("login")}>Log in</button>
-          <button className="cmx-nbtn signup" onClick={() => openAuth("register")}>Start learning</button>
-        </div>
-      </div>
-
-      {/* ============================= HERO ============================= */}
-      <section id="home" className="cmx-hero-section">
-        <div className={`cmx-star s1 ${step >= 1 ? "show" : ""}`}>✨</div>
-        <div className={`cmx-star s2 ${step >= 1 ? "show" : ""}`}>✨</div>
-        <div className={`cmx-star s3 ${step >= 1 ? "show" : ""}`}>⭐</div>
-
-        <div className="cmx-hero-grid">
-          <div className={`cmx-hero-copy ${step >= 1 ? "show" : ""}`}>
-            <span className="cmx-eyebrow">AI-guided programming education</span>
-            <h1>
-              Learn to code <b>with a mentor</b><br />that never clocks out
-            </h1>
-            <p>
-              CodeMentor-X pairs short, focused lessons with an AI mentor that explains,
-              reviews, and nudges — so practice actually turns into skill.
-            </p>
-            <div className="cmx-hero-cta">
-              <button className="cmx-join" onClick={() => openAuth("register")}>Start learning free</button>
-              <button className="cmx-ghost" onClick={() => scrollToSection("how-it-works")}>See how it works →</button>
-            </div>
-            <div className="cmx-trust">
-              <div className="cmx-avatars">
-                 <div className="cmx-av a1">👩</div><div className="cmx-av a2">🧑</div><div className="cmx-av a3">🧔</div>
-              </div>
-              <span>Join over <b>250k+</b> students building real projects</span>
-            </div>
-          </div>
-
-          <div className={`cmx-hero-visual ${step >= 2 ? "show" : ""}`}>
-            <div className="cmx-mascot-group">
-                <ClassroomSceneSVG step={step} />
-                
-                {/* Floating elements */}
-                <div className={`cmx-float-card fc-1 ${step >= 4 ? "show" : ""}`}>🏆 +50 XP Earned</div>
-                <div className={`cmx-float-card fc-2 ${step >= 4 ? "show" : ""}`}>🐍 Python Master</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ========================= VALUE STRIP ========================== */}
-      <section className="cmx-strip glass">
-        <div className="cmx-strip-item"><b>Always available</b><span>Your mentor doesn't keep office hours</span></div>
-        <div className="cmx-strip-div" />
-        <div className="cmx-strip-item"><b>Learn by doing</b><span>Every concept ends in a real exercise</span></div>
-        <div className="cmx-strip-div" />
-        <div className="cmx-strip-item"><b>Built for beginners</b><span>No prior experience assumed</span></div>
-      </section>
-
-      {/* ============================ FEATURES =========================== */}
-      <section id="features" className="cmx-section">
-        <div className="cmx-section-head">
-          <span className="cmx-eyebrow dark">Why CodeMentor-X</span>
-          <h2>Everything you need to go from curious to capable</h2>
-        </div>
-        <div className="cmx-bento-grid">
-          {FEATURES.map((f, i) => (
-            <div className={`cmx-bento-card span-${f.colSpan} glass`} key={f.title}>
-              <div className="cmx-feature-icon"><FeatureIcon kind={f.icon} /></div>
-              <h3>{f.title}</h3>
-              <p>{f.body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* =========================== LANGUAGES =========================== */}
-      <section id="languages" className="cmx-section alt glass-section">
-        <div className="cmx-section-head">
-          <span className="cmx-eyebrow dark">Languages</span>
-          <h2>Start where it makes sense for you</h2>
-        </div>
-        <div className="cmx-lang-grid">
-          <div className="cmx-lang-card py glass">
-            <div className="cmx-lang-top">
-              <span className="cmx-lang-icon">🐍</span>
-              <span className="cmx-lang-tag">Beginner friendly</span>
-            </div>
-            <h3>Python</h3>
-            <p>A versatile, readable language used across web development, automation, data
-              science, and machine learning. Its simple syntax makes it one of the best
-              starting points for new programmers.</p>
-            <button className="cmx-lang-cta" onClick={() => openAuth("register")}>Start Python →</button>
-          </div>
-          <div className="cmx-lang-card cpp glass">
-            <div className="cmx-lang-top">
-              <span className="cmx-lang-icon">⚡</span>
-              <span className="cmx-lang-tag">High performance</span>
-            </div>
-            <h3>C++</h3>
-            <p>A powerful, high-performance language behind system software, game engines,
-              embedded systems, and competitive programming. Learn it to understand what's
-              really happening under the hood.</p>
-            <button className="cmx-lang-cta" onClick={() => openAuth("register")}>Start C++ →</button>
-          </div>
-        </div>
-        <div className="cmx-lang-soon">
-          <span>More languages on the way</span>
-          <div className="cmx-soon-pills">
-            <span className="cmx-pill glass">JavaScript</span>
-            <span className="cmx-pill glass">Java</span>
-            <span className="cmx-pill glass">Rust</span>
-            <span className="cmx-pill glass">Go</span>
-          </div>
-        </div>
-      </section>
-
-      {/* ========================= HOW IT WORKS =========================== */}
-      <section id="how-it-works" className="cmx-section">
-        <div className="cmx-section-head">
-          <span className="cmx-eyebrow dark">How it works</span>
-          <h2>Three steps, then you're writing real code</h2>
-        </div>
-        <div className="cmx-steps">
-          {STEPS.map((st, i) => (
-            <React.Fragment key={st.n}>
-              <div className="cmx-step glass">
-                <span className="cmx-step-n">{st.n}</span>
-                <h3>{st.title}</h3>
-                <p>{st.body}</p>
-              </div>
-              {i < STEPS.length - 1 && <div className="cmx-step-connector" />}
-            </React.Fragment>
-          ))}
-        </div>
-      </section>
-
-      {/* ============================= ABOUT ============================= */}
-      <section id="about" className="cmx-section alt cmx-about glass-section">
-        <div className="cmx-about-grid">
-          <div>
-            <span className="cmx-eyebrow dark">About</span>
-            <h2>An interactive learning space, not another video library</h2>
-            <p>
-              CodeMentor-X is your interactive learning space for mastering programming with
-              confidence, clarity, and real-world practice. We help beginners and aspiring
-              developers learn efficiently, build real projects, and grow step by step —
-              combining AI-guided support with hands-on exploration for a smarter, more
-              personal way to learn.
-            </p>
-          </div>
-          <div className="cmx-about-card glass" style={{ padding: 0, overflow: "hidden", border: "none" }}>
-            <div className="cmx-ide-card relative-ide">
-              <div className="cmx-ide-bar">
-                <span className="dot r" /><span className="dot y" /><span className="dot g" />
-                <span className="cmx-ide-file">mentor.py</span>
-              </div>
-              <pre className="cmx-ide-body">
-                <span className="tok-kw">def</span> <span className="tok-fn">greet</span>(<span className="tok-var">name</span>):{"\n"}
-                {"    "}<span className="tok-kw">return</span> <span className="tok-str">f"Hey {"{name}"}, ready to build?"</span>{"\n\n"}
-                <span className="tok-var">student</span> = <span className="tok-str">"you"</span>{"\n"}
-                <span className="tok-fn">print</span>(<span className="tok-fn">greet</span>(<span className="tok-var">student</span>)){"\n"}
-                <span className="tok-cm"># → Hey you, ready to build?</span>
-              </pre>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ============================== CTA =============================== */}
-      <section className="cmx-cta glass">
-        <h2>Your first lesson takes five minutes.</h2>
-        <p>Create a free account and pick up right where the tutorials leave off.</p>
-        <button className="cmx-join light" onClick={() => openAuth("register")}>Create free account</button>
-      </section>
-
-      {/* ============================= FOOTER ============================= */}
-      <footer id="contact" className="cmx-footer">
-        <div className="cmx-footer-top">
-          <div className="cmx-footer-brand">
-            <span className="cmx-diamond small"><img src={codementorLogo} alt="CodeMentor-X logo" /></span>
-            <b>CodeMentor-X</b>
-          </div>
-          <div className="cmx-footer-cols">
-            <div>
-              <h4>Product</h4>
-              <button onClick={() => scrollToSection("features")}>Features</button>
-              <button onClick={() => scrollToSection("languages")}>Languages</button>
-              <button onClick={() => scrollToSection("how-it-works")}>How it works</button>
-            </div>
-            <div>
-              <h4>Company</h4>
-              <button onClick={() => scrollToSection("about")}>About</button>
-              <button onClick={() => openAuth("login")}>Log in</button>
-              <button onClick={() => openAuth("register")}>Sign up</button>
-            </div>
-            <div>
-              <h4>Contact</h4>
-              <a href="mailto:mubashraazam315@gmail.com">mubashraazam315@gmail.com</a>
-              <a href="tel:03347429296">0334 7429296</a>
-            </div>
-          </div>
-        </div>
-        <div className="cmx-footer-bottom">
-          <span>© {new Date().getFullYear()} CodeMentor-X. All rights reserved.</span>
-          <div className="cmx-footer-social">
-            <a href="https://github.com/" target="_blank" rel="noopener noreferrer"><i className="bx bxl-github" /><FaGithub/></a>
-            <a href="https://www.linkedin.com/" target="_blank" rel="noopener noreferrer"><i className="bx bxl-linkedin" /><FaLinkedin/></a>
-            <a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer"><i className="bx bxl-facebook" /><FaFacebook/></a>
-          </div>
-        </div>
-      </footer>
+      {/* New pink / plum landing page (nav, hero, roadmap, live code, features, languages, how it works) */}
+      <PinkLanding onOpenAuth={openAuth} />
 
       {/* ============================ AUTH OVERLAY ========================== */}
       {authOpen && (
-        <div className="cmx-auth glass-modal" role="dialog" aria-modal="true">
-          <button className="cmx-close" onClick={closeAuth} aria-label="Close">✕</button>
-          <div className="cmx-swap-wrap glass">
-            <div className="cmx-auth-side">
-              <AuthCharSVG />
-              <p className="cmx-side-text">With a click<br />your coding mentor<br />will be ready!</p>
+        <div
+          className="cmxa"
+          role="dialog"
+          aria-modal="true"
+          aria-label={authPanel === "register" ? "Create your account" : "Log in"}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) closeAuth(); }}
+          onKeyDown={(e) => { if (e.key === "Escape") closeAuth(); }}
+        >
+          <button type="button" className="cmxa-close" onClick={closeAuth} aria-label="Close">
+            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+
+          <div className={`cmxa-card ${authPanel === "register" ? "is-reg" : ""}`}>
+            {/* ---------------- REGISTER (left side) ---------------- */}
+            <div className={`cmxa-pane reg ${authPanel === "register" ? "active" : ""}`} inert={authPanel !== "register"}>
+              <form className="cmxa-form" onSubmit={handleRegister} noValidate>
+                <div className="cmxa-eyebrow">Start for free</div>
+                <h2>Create your <span>account</span></h2>
+                <p className="cmxa-sub">Pick a language and your mentor will guide you from level 1.</p>
+
+                <div className={`cmxa-field ${getInputStatus(regValidation.username)}`}>
+                  <input ref={regUsernameRef} type="text" name="username" placeholder="Username" autoComplete="username"
+                    value={regData.username} onChange={handleRegChange} aria-label="Username" />
+                  <svg className="ico" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></svg>
+                  <svg className="ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+                </div>
+                <div className={`cmxa-err ${regValidation.username.touched && !regValidation.username.valid ? "show" : ""}`}>{regValidation.username.error}</div>
+
+                <div className={`cmxa-field ${getInputStatus(regValidation.email)}`}>
+                  <input type="email" name="email" placeholder="Email address" autoComplete="email"
+                    value={regData.email} onChange={handleRegChange} aria-label="Email address" />
+                  <svg className="ico" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M3.5 7l8.5 6 8.5-6" /></svg>
+                  <svg className="ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+                </div>
+                <div className={`cmxa-err ${regValidation.email.touched && !regValidation.email.valid ? "show" : ""}`}>{regValidation.email.error}</div>
+
+                <div className={`cmxa-field ${getInputStatus(regValidation.password)}`}>
+                  <input type="password" name="password" placeholder="Password" autoComplete="new-password"
+                    value={regData.password} onChange={handleRegChange} aria-label="Password" />
+                  <svg className="ico" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+                  <svg className="ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+                </div>
+                <div className={`cmxa-err ${regValidation.password.touched && !regValidation.password.valid ? "show" : ""}`}>{regValidation.password.error}</div>
+
+                <div className="cmxa-strength">
+                  <i className={regValidation.passwordStrength || ""}
+                    style={{ width: regValidation.passwordStrength ? (regValidation.passwordStrength === "weak" ? "35%" : regValidation.passwordStrength === "medium" ? "70%" : "100%") : "0%" }} />
+                </div>
+                <div className="cmxa-strength-label">
+                  {regValidation.passwordStrength ? `Strength: ${regValidation.passwordStrength.charAt(0).toUpperCase() + regValidation.passwordStrength.slice(1)}` : "Password strength"}
+                </div>
+                {regError && <p className="cmxa-note">{regError}</p>}
+                <button type="submit" className="cmxa-submit" disabled={!isRegisterValid || authLoading}>
+                  {authLoading ? "Creating account..." : "Create account"}
+                </button>
+                <div className="cmxa-divider">OR REGISTER WITH</div>
+                <div className="cmxa-social">
+                  <a href="https://accounts.google.com/" target="_blank" rel="noopener noreferrer" aria-label="Google"><FaGoogle /></a>
+                  <a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><FaFacebook /></a>
+                  <a href="https://github.com/login" target="_blank" rel="noopener noreferrer" aria-label="GitHub"><FaGithub /></a>
+                  <a href="https://www.linkedin.com/login" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"><FaLinkedin /></a>
+                </div>
+                <p className="cmxa-switch">Have an account?{" "}
+                  <a className="cmxa-link" href="#login" onClick={(e) => switchAuthPanel("login", e)}>Log in here</a>
+                </p>
+              </form>
             </div>
 
-            <div className={`cmx-forms ${authPanel === "register" ? "show-reg" : ""}`}>
-              {/* LOGIN */}
-              <div className="cmx-panel login-panel">
-                <form className="cmx-form-inner" onSubmit={handleLogin}>
-                  <h2>Welcome back</h2>
-                  <div className={`cmx-inp ${loginValidation.username.touched ? (loginValidation.username.valid ? "has-success" : "has-error") : ""}`}>
-                    <input
-                      ref={loginUsernameRef}
-                      type="text"
-                      name="username"
-                      placeholder="Username or email"
-                      value={loginData.username}
-                      onChange={handleLoginChange}
-                      className={getInputStatus(loginValidation.username)}
-                    />
-                    <i className="bx bx-user cmx-input-icon"></i>
-                    <i className={`bx bx-check-circle cmx-input-status ${loginValidation.username.valid ? "show" : ""}`}></i>
-                  </div>
-                  <div className={`cmx-error-text ${loginValidation.username.touched && !loginValidation.username.valid ? "show" : ""}`}>{loginValidation.username.error}</div>
-                  
-                  <div className={`cmx-inp ${loginValidation.password.touched ? (loginValidation.password.valid ? "has-success" : "has-error") : ""}`}>
-                    <input
-                      type="password"
-                      name="password"
-                      placeholder="Password"
-                      value={loginData.password}
-                      onChange={handleLoginChange}
-                      className={getInputStatus(loginValidation.password)}
-                    />
-                    <i className="bx bx-lock-alt cmx-input-icon"></i>
-                  </div>
-                  <div className={`cmx-error-text ${loginValidation.password.touched && !loginValidation.password.valid ? "show" : ""}`}>{loginValidation.password.error}</div>
-                  <a className="cmx-forgot" href="#forgot">Forgot password?</a>
-                  {loginError && <p className="cmx-form-note error">{loginError}</p>}
-                  <button type="submit" className="cmx-sbtn" disabled={!isLoginValid || authLoading}>{authLoading ? "Logging in..." : "Log in"}</button>
-                  <div className="cmx-divider">OR CONTINUE WITH</div>
-                  <div className="cmx-social">
-                    <a href="https://accounts.google.com/" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-google" /><FaGoogle/></a>
-                    <a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-facebook" /><FaFacebook/></a>
-                    <a href="https://github.com/" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-github" /><FaGithub/></a>
-                    <a href="https://www.linkedin.com/" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-linkedin" /><FaLinkedin/></a>
-                  </div>
-                  <p className="cmx-switch">No account?{" "}
-                    <a href="#reg" onClick={(e) => switchAuthPanel("register", e)}>Register here</a>
-                  </p>
-                </form>
-              </div>
+            {/* ---------------- LOGIN (right side) ---------------- */}
+            <div className={`cmxa-pane login ${authPanel === "login" ? "active" : ""}`} inert={authPanel !== "login"}>
+              <form className="cmxa-form" onSubmit={handleLogin} noValidate>
+                <div className="cmxa-eyebrow">Welcome back</div>
+                <h2>Log in to <span>continue</span></h2>
+                <p className="cmxa-sub">Your levels, stars and mentor chats are waiting for you.</p>
 
-              {/* REGISTER */}
-              <div className="cmx-panel reg-panel">
-                <form className="cmx-form-inner" onSubmit={handleRegister}>
-                  <h2>Create your account</h2>
-                  <div className={`cmx-inp ${regValidation.username.touched ? (regValidation.username.valid ? "has-success" : "has-error") : ""}`}>
-                    <input
-                      ref={regUsernameRef}
-                      type="text"
-                      name="username"
-                      placeholder="Username"
-                      value={regData.username}
-                      onChange={handleRegChange}
-                      className={getInputStatus(regValidation.username)}
-                    />
-                    <i className="bx bx-user cmx-input-icon"></i>
-                    <i className={`bx bx-check-circle cmx-input-status ${regValidation.username.valid ? "show" : ""}`}></i>
-                  </div>
-                  <div className={`cmx-error-text ${regValidation.username.touched && !regValidation.username.valid ? "show" : ""}`}>{regValidation.username.error}</div>
+                <div className={`cmxa-field ${getInputStatus(loginValidation.username)}`}>
+                  <input ref={loginUsernameRef} type="text" name="username" placeholder="Username" autoComplete="username"
+                    value={loginData.username} onChange={handleLoginChange} aria-label="Username" />
+                  <svg className="ico" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></svg>
+                  <svg className="ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+                </div>
+                <div className={`cmxa-err ${loginValidation.username.touched && !loginValidation.username.valid ? "show" : ""}`}>{loginValidation.username.error}</div>
 
-                  <div className={`cmx-inp ${regValidation.email.touched ? (regValidation.email.valid ? "has-success" : "has-error") : ""}`}>
-                    <input
-                      type="email"
-                      name="email"
-                      placeholder="Email Address"
-                      value={regData.email}
-                      onChange={handleRegChange}
-                      className={getInputStatus(regValidation.email)}
-                    />
-                    <i className="bx bx-envelope cmx-input-icon"></i>
-                    <i className={`bx bx-check-circle cmx-input-status ${regValidation.email.valid ? "show" : ""}`}></i>
-                  </div>
-                  <div className={`cmx-error-text ${regValidation.email.touched && !regValidation.email.valid ? "show" : ""}`}>{regValidation.email.error}</div>
+                <div className={`cmxa-field ${getInputStatus(loginValidation.password)}`}>
+                  <input type="password" name="password" placeholder="Password" autoComplete="current-password"
+                    value={loginData.password} onChange={handleLoginChange} aria-label="Password" />
+                  <svg className="ico" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+                </div>
+                <div className={`cmxa-err ${loginValidation.password.touched && !loginValidation.password.valid ? "show" : ""}`}>{loginValidation.password.error}</div>
 
-                  <div className={`cmx-inp ${regValidation.password.touched ? (regValidation.password.valid ? "has-success" : "has-error") : ""}`}>
-                    <input
-                      type="password"
-                      name="password"
-                      placeholder="Password"
-                      value={regData.password}
-                      onChange={handleRegChange}
-                      className={getInputStatus(regValidation.password)}
-                    />
-                    <i className="bx bx-lock-alt cmx-input-icon"></i>
-                  </div>
-                  <div className={`cmx-error-text ${regValidation.password.touched && !regValidation.password.valid ? "show" : ""}`}>{regValidation.password.error}</div>
-                  <div className="cmx-strength-wrap">
-                    <div
-                      className={`cmx-strength-bar ${regValidation.passwordStrength || ""}`}
-                      style={{ width: regValidation.passwordStrength ? (regValidation.passwordStrength === "weak" ? "35%" : regValidation.passwordStrength === "medium" ? "70%" : "100%") : "0%" }}
-                    />
-                  </div>
-                  <div className="cmx-strength-label">{regValidation.passwordStrength ? `Strength: ${regValidation.passwordStrength.charAt(0).toUpperCase() + regValidation.passwordStrength.slice(1)}` : "Password strength"}</div>
-                  {regError && <p className="cmx-form-note error">{regError}</p>}
-                  <button type="submit" className="cmx-sbtn" style={{ marginTop: 8 }} disabled={!isRegisterValid || authLoading}>{authLoading ? "Creating account..." : "Create account"}</button>
-                  <div className="cmx-divider">OR REGISTER WITH</div>
-                  <div className="cmx-social">
-                    <a href="https://accounts.google.com/" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-google" /><FaGoogle/></a>
-                    <a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-facebook" /><FaFacebook/></a>
-                    <a href="https://github.com/login" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-github" /><FaGithub/></a>
-                    <a href="https://www.linkedin.com/login" target="_blank" rel="noopener noreferrer" className="cmx-soc"><i className="bx bxl-linkedin" /><FaLinkedin/></a>
-                  </div>
-                  <p className="cmx-switch">Have an account?{" "}
-                    <a href="#login" onClick={(e) => switchAuthPanel("login", e)}>Log in here</a>
-                  </p>
-                </form>
+                <div className="cmxa-row"><a className="cmxa-link" href="#forgot">Forgot password?</a></div>
+                {loginError && <p className="cmxa-note">{loginError}</p>}
+                <button type="submit" className="cmxa-submit" disabled={!isLoginValid || authLoading}>
+                  {authLoading ? "Logging in..." : "Log in"}
+                </button>
+                <div className="cmxa-divider">OR CONTINUE WITH</div>
+                <div className="cmxa-social">
+                  <a href="https://accounts.google.com/" target="_blank" rel="noopener noreferrer" aria-label="Google"><FaGoogle /></a>
+                  <a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><FaFacebook /></a>
+                  <a href="https://github.com/" target="_blank" rel="noopener noreferrer" aria-label="GitHub"><FaGithub /></a>
+                  <a href="https://www.linkedin.com/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"><FaLinkedin /></a>
+                </div>
+                <p className="cmxa-switch">No account?{" "}
+                  <a className="cmxa-link" href="#reg" onClick={(e) => switchAuthPanel("register", e)}>Register here</a>
+                </p>
+              </form>
+            </div>
+
+            {/* ---------------- SLIDING TEACHER PANEL ---------------- */}
+            <div className="cmxa-panel">
+              <span className="blob b1" /><span className="blob b2" />
+              <div className="cmxa-panel-inner">
+                <div className="cmxa-bubble" key={`bubble-${authPanel}`}>
+                  {authPanel === "register" ? "Let’s set up your account together!" : "Welcome back! Ready for your next level?"}
+                </div>
+                <div className="cmxa-walker" key={`walk-${authPanel}`}>
+                  <div className="cmxa-face"><div className="cmxa-bob"><TeacherSVG /></div></div>
+                </div>
+                <div className="cmxa-swap" key={`text-${authPanel}`}>
+                  {authPanel === "register" ? (
+                    <>
+                      <h3>Already learning?</h3>
+                      <p>Log in to continue from where you stopped.</p>
+                      <button type="button" className="cmxa-ghost" onClick={(e) => switchAuthPanel("login", e)}>Log in</button>
+                    </>
+                  ) : (
+                    <>
+                      <h3>New to CodeMentor-X?</h3>
+                      <p>Create a free account and start level 1 in minutes.</p>
+                      <button type="button" className="cmxa-ghost" onClick={(e) => switchAuthPanel("register", e)}>Create account</button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </div>

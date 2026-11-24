@@ -1,0 +1,142 @@
+/* =====================================================================
+   CodeMentor-X — login / register popup (pink light / plum dark)
+   The theme follows the landing page toggle (html[data-cmx-theme]).
+   ===================================================================== */
+.cmxa {
+  --a-bg: rgba(42, 15, 28, .38);
+  --a-card: #FFFFFF; --a-field: #FFF6F8; --a-line: #F2D2DC;
+  --a-text: #2A0F1C; --a-muted: #7A4D5F; --a-soft: #B88A9C;
+  --a-accent: #A3245A; --a-accent2: #E2577F; --a-accent3: #F29A7E;
+  --a-btn: #8E1F4C; --a-btn-text: #FFFFFF; --a-ring: rgba(226,87,127,.22);
+  --a-ok: #2E8B57; --a-err: #D6336C;
+  --a-panel: linear-gradient(150deg, #A3245A 0%, #E2577F 55%, #F29A7E 100%);
+  --a-panel-text: #FFFFFF;
+  --a-shadow: 0 40px 100px rgba(142,31,76,.28);
+}
+html[data-cmx-theme="dark"] .cmxa {
+  --a-bg: rgba(10, 5, 12, .62);
+  --a-card: #221726; --a-field: #2B1D30; --a-line: rgba(255,255,255,.10);
+  --a-text: #F8ECF1; --a-muted: #C7AEBC; --a-soft: #8E7383;
+  --a-accent: #F2A7C0; --a-accent2: #F6BFB0; --a-accent3: #E7A0D6;
+  --a-btn: #F4C4B5; --a-btn-text: #2A0F1C; --a-ring: rgba(242,167,192,.22);
+  --a-ok: #9FE0B4; --a-err: #FF8FAE;
+  --a-panel: linear-gradient(150deg, #4A2245 0%, #7A3560 55%, #B0587A 100%);
+  --a-panel-text: #FFF3F6;
+  --a-shadow: 0 40px 100px rgba(0,0,0,.6);
+}
+
+.cmxa { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; background: var(--a-bg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif; animation: cmxaFade .35s ease both; }
+.cmxa *, .cmxa *::before, .cmxa *::after { box-sizing: border-box; }
+@keyframes cmxaFade { from { opacity: 0; } to { opacity: 1; } }
+
+.cmxa-close { position: absolute; top: 22px; right: 22px; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--a-line); background: var(--a-card); color: var(--a-text); display: grid; place-items: center; cursor: pointer; transition: transform .35s cubic-bezier(.3,1.6,.5,1), background .3s; }
+.cmxa-close:hover { transform: rotate(90deg) scale(1.08); }
+.cmxa-close svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2.4; stroke-linecap: round; }
+
+/* ---------- the card ---------- */
+.cmxa-card { position: relative; width: min(960px, 100%); height: 620px; border-radius: 30px; background: var(--a-card); box-shadow: var(--a-shadow); overflow: hidden; animation: cmxaIn .6s cubic-bezier(.3,1.4,.5,1) both; }
+@keyframes cmxaIn { from { opacity: 0; transform: translateY(40px) scale(.94); } to { opacity: 1; transform: none; } }
+
+/* ---------- the two forms ---------- */
+.cmxa-pane { position: absolute; top: 0; bottom: 0; width: 50%; display: flex; align-items: center; justify-content: center; padding: 34px 48px; transition: opacity .55s ease, transform .8s cubic-bezier(.7,0,.2,1); overflow-y: auto; }
+.cmxa-pane.login { left: 50%; }
+.cmxa-pane.reg { left: 0; }
+.cmxa-card:not(.is-reg) .cmxa-pane.reg { opacity: 0; transform: translateX(60px); pointer-events: none; }
+.cmxa-card.is-reg .cmxa-pane.login { opacity: 0; transform: translateX(-60px); pointer-events: none; }
+.cmxa-form { width: 100%; max-width: 360px; }
+.cmxa-form > * { opacity: 0; transform: translateY(16px); }
+.cmxa-pane.active .cmxa-form > * { animation: cmxaRise .55s cubic-bezier(.3,1.3,.5,1) forwards; }
+.cmxa-pane.active .cmxa-form > *:nth-child(1) { animation-delay: .25s; }
+.cmxa-pane.active .cmxa-form > *:nth-child(2) { animation-delay: .31s; }
+.cmxa-pane.active .cmxa-form > *:nth-child(3) { animation-delay: .37s; }
+.cmxa-pane.active .cmxa-form > *:nth-child(4) { animation-delay: .43s; }
+.cmxa-pane.active .cmxa-form > *:nth-child(5) { animation-delay: .49s; }
+.cmxa-pane.active .cmxa-form > *:nth-child(6) { animation-delay: .55s; }
+.cmxa-pane.active .cmxa-form > *:nth-child(7) { animation-delay: .61s; }
+.cmxa-pane.active .cmxa-form > *:nth-child(n+8) { animation-delay: .67s; }
+@keyframes cmxaRise { to { opacity: 1; transform: none; } }
+
+.cmxa-eyebrow { font-size: 12px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--a-accent); }
+.cmxa-form h2 { margin: 8px 0 0; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 34px; line-height: 1.1; font-weight: 800; letter-spacing: -.035em; color: var(--a-text); }
+.cmxa-form h2 span { background: linear-gradient(90deg, var(--a-accent), var(--a-accent2), var(--a-accent3)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cmxa-sub { margin: 8px 0 20px; color: var(--a-muted); font-size: 14.5px; line-height: 1.5; }
+
+.cmxa-field { position: relative; margin-top: 12px; }
+.cmxa-field input { width: 100%; height: 52px; padding: 0 44px 0 46px; border-radius: 15px; border: 1.5px solid var(--a-line); background: var(--a-field); color: var(--a-text); font: 500 15px 'Plus Jakarta Sans', system-ui, sans-serif; outline: none; transition: border-color .25s, box-shadow .25s, background .25s; }
+.cmxa-field input::placeholder { color: var(--a-soft); }
+.cmxa-field input:focus { border-color: var(--a-accent2); box-shadow: 0 0 0 4px var(--a-ring); background: var(--a-card); }
+.cmxa-field .ico { position: absolute; left: 16px; top: 50%; width: 18px; height: 18px; transform: translateY(-50%); stroke: var(--a-soft); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: stroke .25s; pointer-events: none; }
+.cmxa-field input:focus ~ .ico { stroke: var(--a-accent); }
+.cmxa-field .ok { position: absolute; right: 15px; top: 50%; width: 20px; height: 20px; transform: translateY(-50%) scale(0); stroke: var(--a-ok); fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; transition: transform .35s cubic-bezier(.3,1.8,.5,1); pointer-events: none; }
+.cmxa-field.valid .ok { transform: translateY(-50%) scale(1); }
+.cmxa-field.valid input { border-color: color-mix(in srgb, var(--a-ok) 55%, var(--a-line)); }
+.cmxa-field.invalid input { border-color: var(--a-err); animation: cmxaShake .4s; }
+@keyframes cmxaShake { 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
+.cmxa-err { max-height: 0; overflow: hidden; color: var(--a-err); font-size: 12.5px; font-weight: 600; padding-left: 4px; transition: max-height .3s, margin .3s; }
+.cmxa-err.show { max-height: 40px; margin-top: 6px; }
+
+.cmxa-row { display: flex; justify-content: flex-end; margin-top: 10px; }
+.cmxa-link { color: var(--a-accent); font-weight: 700; font-size: 13.5px; text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; }
+.cmxa-link:hover { text-decoration: underline; }
+.cmxa-note { margin: 12px 0 0; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--a-err) 12%, transparent); color: var(--a-err); font-size: 13.5px; font-weight: 600; }
+
+.cmxa-strength { height: 6px; border-radius: 6px; background: var(--a-line); margin-top: 12px; overflow: hidden; }
+.cmxa-strength i { display: block; height: 100%; border-radius: 6px; transition: width .5s cubic-bezier(.3,1.3,.5,1), background .3s; }
+.cmxa-strength i.weak { background: #E0476B; } .cmxa-strength i.medium { background: #F5B83D; } .cmxa-strength i.strong { background: var(--a-ok); }
+.cmxa-strength-label { margin-top: 6px; font-size: 12.5px; font-weight: 600; color: var(--a-muted); }
+
+.cmxa-submit { position: relative; overflow: hidden; width: 100%; height: 54px; margin-top: 18px; border-radius: 999px; border: 0; background: var(--a-btn); color: var(--a-btn-text); font: 800 16px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer; box-shadow: 0 14px 30px var(--a-ring); transition: transform .25s, box-shadow .25s, opacity .25s; }
+.cmxa-submit::after { content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.45), transparent); transform: skewX(-20deg); animation: cmxaShine 2.8s ease-in-out infinite; }
+@keyframes cmxaShine { 0%, 55% { left: -60%; } 100% { left: 130%; } }
+.cmxa-submit:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 18px 36px var(--a-ring); }
+.cmxa-submit:disabled { opacity: .5; cursor: not-allowed; }
+.cmxa-submit:disabled::after { display: none; }
+
+.cmxa-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0 12px; font-size: 11.5px; font-weight: 800; letter-spacing: .12em; color: var(--a-soft); }
+.cmxa-divider::before, .cmxa-divider::after { content: ""; flex: 1; height: 1px; background: var(--a-line); }
+.cmxa-social { display: flex; justify-content: center; gap: 10px; }
+.cmxa-social a { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; border: 1px solid var(--a-line); background: var(--a-field); color: var(--a-text); font-size: 18px; transition: transform .3s cubic-bezier(.3,1.6,.5,1), background .25s, color .25s; }
+.cmxa-social a:hover { transform: translateY(-4px) rotate(-6deg); background: var(--a-btn); color: var(--a-btn-text); }
+.cmxa-switch { margin: 14px 0 0; text-align: center; font-size: 14px; color: var(--a-muted); display: none; }
+
+/* ---------- the sliding teacher panel ---------- */
+.cmxa-panel { position: absolute; top: 0; left: 0; width: 50%; height: 100%; z-index: 5; overflow: hidden; background: var(--a-panel); color: var(--a-panel-text); transition: transform .85s cubic-bezier(.7,0,.2,1), border-radius .85s; border-radius: 0 120px 120px 0; }
+.cmxa-card.is-reg .cmxa-panel { transform: translateX(100%); border-radius: 120px 0 0 120px; }
+.cmxa-panel .blob { position: absolute; border-radius: 50%; background: rgba(255,255,255,.16); animation: cmxaBlob 9s ease-in-out infinite; }
+.cmxa-panel .blob.b1 { width: 260px; height: 260px; top: -90px; left: -70px; }
+.cmxa-panel .blob.b2 { width: 180px; height: 180px; bottom: -60px; right: -40px; animation-delay: -4s; }
+@keyframes cmxaBlob { 0%, 100% { transform: translate(0,0) scale(1); } 50% { transform: translate(20px, 16px) scale(1.12); } }
+.cmxa-panel-inner { position: relative; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 30px 36px; text-align: center; }
+
+.cmxa-bubble { position: relative; max-width: 270px; padding: 12px 16px; border-radius: 18px; background: rgba(255,255,255,.95); color: #2A0F1C; font-weight: 700; font-size: 14.5px; line-height: 1.45; box-shadow: 0 14px 30px rgba(0,0,0,.15); animation: cmxaBubble .55s .55s cubic-bezier(.3,1.7,.5,1) both; }
+.cmxa-bubble::after { content: ""; position: absolute; left: 50%; bottom: -8px; width: 16px; height: 16px; background: inherit; transform: translateX(-50%) rotate(45deg); border-radius: 3px; }
+@keyframes cmxaBubble { from { opacity: 0; transform: scale(.5) translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* teacher: hops while the panel slides, and turns to face the form */
+.cmxa-walker { margin-top: 6px; animation: cmxaWalk .85s cubic-bezier(.4,0,.2,1) both; }
+@keyframes cmxaWalk { 0% { transform: translateY(0) rotate(0); } 20% { transform: translateY(-26px) rotate(-6deg); } 40% { transform: translateY(0) rotate(0); } 60% { transform: translateY(-18px) rotate(6deg); } 80% { transform: translateY(0); } 90% { transform: translateY(-6px); } 100% { transform: none; } }
+.cmxa-face { transition: transform .5s cubic-bezier(.3,1.5,.5,1) .25s; }
+.cmxa-card.is-reg .cmxa-face { transform: scaleX(-1); }
+.cmxa-bob { animation: cmxaBob 2.6s ease-in-out .9s infinite alternate; }
+@keyframes cmxaBob { from { transform: translateY(0); } to { transform: translateY(-8px); } }
+.cmxa-face svg { display: block; width: 132px; height: auto; overflow: visible; filter: drop-shadow(0 18px 22px rgba(0,0,0,.25)); }
+
+.cmxa-panel h3 { margin: 8px 0 0; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 26px; font-weight: 800; letter-spacing: -.03em; color: var(--a-panel-text); }
+.cmxa-panel p { margin: 4px 0 0; font-size: 14.5px; line-height: 1.55; opacity: .92; max-width: 280px; }
+.cmxa-ghost { margin-top: 12px; height: 46px; padding: 0 26px; border-radius: 999px; border: 2px solid rgba(255,255,255,.85); background: transparent; color: var(--a-panel-text); font: 800 15px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer; transition: background .25s, color .25s, transform .25s; }
+.cmxa-ghost:hover { background: #fff; color: #8E1F4C; transform: translateY(-2px); }
+.cmxa-swap { animation: cmxaSwap .6s .3s cubic-bezier(.3,1.3,.5,1) both; }
+@keyframes cmxaSwap { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+/* ---------- phones: no sliding panel, one form at a time ---------- */
+@media (max-width: 760px) {
+  .cmxa-card { height: auto; max-height: calc(100vh - 40px); overflow-y: auto; }
+  .cmxa-panel { display: none; }
+  .cmxa-pane { position: relative; left: 0 !important; width: 100%; padding: 56px 22px 28px; }
+  .cmxa-card:not(.is-reg) .cmxa-pane.reg, .cmxa-card.is-reg .cmxa-pane.login { display: none; }
+  .cmxa-switch { display: block; }
+  .cmxa-form h2 { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cmxa *, .cmxa *::before, .cmxa *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
