@@ -16,6 +16,8 @@ import "./choose/choosePath.css";
  *                           from GET /api/auth/me. Enrolled cards show a badge and "Continue ...".
  *   onBack        fn        "← Dashboard" button. If not passed, the button appears by itself
  *                           when the student already has a track, and opens /dashboard.
+ *   onOpenRoadmaps fn(topic) the AI Roadmap card's button. If not passed, the page opens
+ *                           /roadmaps (or /roadmaps?topic=Go) by itself.
  */
 
 // ---------- track data (edit texts here) ----------
@@ -61,10 +63,23 @@ const LANGS = [
     code: [["kw", "export default function"], ["", " App() {\n  "], ["kw", "return"], ["", " <h1>Hello, Ayesha!</h1>;\n}"]],
   },
 ];
+// The 6th card: an AI roadmap for any language that has no built-in track (Module 2.4)
+const ROADMAP = {
+  id: "roadmap", name: "AI Roadmap", tag: "Any language", runs: "Made by AI for you",
+  line: "Want Go, Kotlin, SQL or anything else? Get your own step-by-step AI roadmap.",
+  about: "Not in our 5 tracks? Type any language or technology, pick your level and how many hours you have each week. The AI plans it stage by stage, with practice, debugging tasks and a project in every stage.",
+  steps: ["Type any language", "Pick your level and time", "Get ordered stages", "Tick stages as you finish"],
+  picks: ["Go", "Kotlin", "SQL", "Rust", "TypeScript", "Swift"],
+  sample: [["Stage 1", "Go basics", "Week 1-2"], ["Stage 2", "Functions & errors", "Week 3"], ["Stage 3", "Structs & interfaces", "Week 4"], ["Stage 4", "Goroutines", "Week 5-6"]],
+};
+const DECK = [...LANGS.map((l) => l.id), ROADMAP.id];
 const DIFF_NAMES = ["", "Easy", "Medium", "Hard"];
 const SPARK_GLYPHS = ["</>", "{ }", "★", "( )", "=>", "★", ";", "★"];
 
 // ---------- small pieces ----------
+const CompassIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" /><path d="M15.8 8.2l-2.2 5.4-5.4 2.2 2.2-5.4z" /></svg>
+);
 const Atom = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <ellipse cx="12" cy="12" rx="10" ry="4" /><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)" />
@@ -162,13 +177,14 @@ async function fetchEnrollments() {
   }
 }
 
-// Goes to the dashboard without reloading (React Router listens to popstate)
-function goToDashboard() {
-  window.history.pushState({}, "", "/dashboard");
+// Goes to another page without reloading (React Router listens to popstate)
+function goTo(url) {
+  window.history.pushState({}, "", url);
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
+const goToDashboard = () => goTo("/dashboard");
 
-export default function ChoosePath({ username = "Student", onSelectPath, enrollments: enrollmentsProp, onBack }) {
+export default function ChoosePath({ username = "Student", onSelectPath, enrollments: enrollmentsProp, onBack, onOpenRoadmaps }) {
   const [fetched, setFetched] = useState([]);   // tracks read from the server
   const [added, setAdded] = useState([]);       // tracks saved on this page
   useEffect(() => {
@@ -179,6 +195,10 @@ export default function ChoosePath({ username = "Student", onSelectPath, enrollm
   }, [enrollmentsProp]);
   const enrollments = [...new Set([...(enrollmentsProp || fetched), ...added])];
   const handleBack = onBack || (enrollments.length ? goToDashboard : null);
+  const openRoadmaps = (topic) => {
+    if (onOpenRoadmaps) onOpenRoadmaps(topic);
+    else goTo(topic ? `/roadmaps?topic=${encodeURIComponent(topic)}` : "/roadmaps");
+  };
 
   const rootRef = useRef(null);
   const stageRef = useRef(null);
@@ -209,11 +229,13 @@ export default function ChoosePath({ username = "Student", onSelectPath, enrollm
   // stage width -> scale factor for the fan (k) and phone layout (narrow)
   const [k, setK] = useState(1);
   const [narrow, setNarrow] = useState(false);
+  const [stageW, setStageW] = useState(1280);
   useEffect(() => {
     const measure = () => {
       const w = stageRef.current?.clientWidth || 1280;
       setK(Math.max(0.42, Math.min(1, (w - 40) / 1180)));
       setNarrow(w < 960);
+      setStageW(w);
     };
     measure();
     window.addEventListener("resize", measure);
@@ -221,7 +243,7 @@ export default function ChoosePath({ username = "Student", onSelectPath, enrollm
   }, []);
 
   // deck state
-  const [order, setOrder] = useState(LANGS.map((l) => l.id));
+  const [order, setOrder] = useState(DECK);
   const [dealt, setDealt] = useState([]);          // ids that have landed in the fan
   const [mode, setMode] = useState("fan");          // "fan" | "detail"
   const [current, setCurrent] = useState(null);
@@ -241,7 +263,7 @@ export default function ChoosePath({ username = "Student", onSelectPath, enrollm
 
   // deal the cards in, one by one
   useEffect(() => {
-    LANGS.forEach((l, slot) => later(() => { setDealt((d) => [...d, l.id]); spin(l.id); }, 500 + slot * 160));
+    DECK.forEach((id, slot) => later(() => { setDealt((d) => [...d, id]); spin(id); }, 500 + slot * 160));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -250,10 +272,10 @@ export default function ChoosePath({ username = "Student", onSelectPath, enrollm
   const doShuffle = () => {
     if (shuffle || mode !== "fan") return;
     setShuffleSpin((n) => n + 1);
-    const jitter = LANGS.map(() => [(Math.random() - 0.5) * 30, (Math.random() - 0.5) * 26]);
+    const jitter = DECK.map(() => [(Math.random() - 0.5) * 30, (Math.random() - 0.5) * 26]);
     setShuffle({ phase: 1, jitter });
     later(() => setShuffle({ phase: 2, jitter }), 420);
-    later(() => setShuffle({ phase: 3, jitter: LANGS.map(() => [(Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20]) }), 800);
+    later(() => setShuffle({ phase: 3, jitter: DECK.map(() => [(Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20]) }), 800);
     later(() => {
       setOrder((o) => {
         const n = [...o];
@@ -268,9 +290,10 @@ export default function ChoosePath({ username = "Student", onSelectPath, enrollm
   const pick = (id) => {
     if (shuffle || id === current || saving) return;
     setCurrent(id); setMode("detail"); setHovered(null); setSaveState(null); setError("");
+    if (rootRef.current) rootRef.current.scrollLeft = 0; // focus on an edge card must not slide the page sideways
     setPanelOn(false); later(() => setPanelOn(true), 220);
     spin(id);
-    say("Great choice! Have a look inside.");
+    say(id === ROADMAP.id ? "Any language you like!" : "Great choice! Have a look inside.");
     const top = stageRef.current ? stageRef.current.offsetTop - 70 : 0;
     glide(narrow ? 0 : top);
   };
@@ -292,11 +315,14 @@ export default function ChoosePath({ username = "Student", onSelectPath, enrollm
       if (id === current) return narrow ? { t: "translate(0px,-30px) scale(.85)", z: 50 } : { t: "translate(-400px,40px) rotate(-3deg) scale(1.18)", z: 50 };
       const others = order.filter((x) => x !== current), j = others.indexOf(id);
       if (narrow) return { t: "translate(0px,-30px) scale(.6)", z: 5, hidden: true };
-      return { t: `translate(${-400 + (j - 1.5) * 104}px,322px) rotate(${(j - 1.5) * 4}deg) scale(.4)`, z: 20 + j };
+      const m = (others.length - 1) / 2;
+      return { t: `translate(${-400 + (j - m) * 96}px,322px) rotate(${(j - m) * 4}deg) scale(.4)`, z: 20 + j };
     }
-    const s = Math.max(k, 0.55);
-    if (hovered === id) return { t: `translate(${d * 190 * k}px,${(Math.abs(d) * 22 + 30) * k - 40}px) rotate(0deg) scale(${1.07 * s})`, z: 40 };
-    return { t: `translate(${d * 190 * k}px,${(Math.abs(d) * 22 + 30) * k}px) rotate(${d * 6}deg) scale(${s})`, z: 10 + slot };
+    // 6 cards: a little tighter, and nudged right so the teacher on the left stays visible
+    const s = Math.max(k, 0.55), ox = narrow ? 0 : 50 * k;
+    const gap = narrow ? Math.min(150, (stageW - 232 * s - 24) / (n - 1) / k) : 165; // phones: all 6 cards fit the screen
+    if (hovered === id) return { t: `translate(${d * gap * k + ox}px,${(Math.abs(d) * 22 + 30) * k - 40}px) rotate(0deg) scale(${1.07 * s})`, z: 40 };
+    return { t: `translate(${d * gap * k + ox}px,${(Math.abs(d) * 22 + 30) * k}px) rotate(${d * 6}deg) scale(${s})`, z: 10 + slot };
   };
 
   // saving
@@ -334,13 +360,14 @@ export default function ChoosePath({ username = "Student", onSelectPath, enrollm
   };
 
   const lang = LANGS.find((l) => l.id === current);
+  const isRoadmap = current === ROADMAP.id;
   const isEnrolled = (id) => enrollments.includes(id);
 
   // "/choose-path?track=java" (from the AI Roadmap page) opens that card once the deck is dealt
   useEffect(() => {
     const preset = new URLSearchParams(window.location.search).get("track");
-    if (!LANGS.some((l) => l.id === preset)) return undefined;
-    const t = setTimeout(() => pick(preset), 500 + LANGS.length * 160 + 500);
+    if (!DECK.includes(preset)) return undefined;
+    const t = setTimeout(() => pick(preset), 500 + DECK.length * 160 + 500);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -369,7 +396,9 @@ export default function ChoosePath({ username = "Student", onSelectPath, enrollm
         <span className="eyebrow">Pick a track</span>
         <BounceTitle a="Choose your" b="learning path" />
         <p className="sub">
-          {lang && mode === "detail" ? `Here is everything inside the ${lang.name} track.` : "Every track has 20 levels, 10 projects and an AI viva. Shuffle the deck, then tap a card to see everything inside it."}
+          {isRoadmap && mode === "detail" ? "Learn any language with a plan the AI makes just for you."
+            : lang && mode === "detail" ? `Here is everything inside the ${lang.name} track.`
+            : "Every track has 20 levels, 10 projects and an AI viva. Want another language? Pick the AI Roadmap card."}
         </p>
         <div className={`tools${mode === "detail" ? " hide" : ""}`}>
           <button type="button" className={`btn ghost${shuffleSpin ? " spin" : ""}`} key={shuffleSpin} onClick={doShuffle}>
@@ -416,7 +445,78 @@ export default function ChoosePath({ username = "Student", onSelectPath, enrollm
           );
         })}
 
-        <div className={`panel${lang && panelOn ? " show" : ""}`}>
+        {(() => {
+          const p = poseOf(ROADMAP.id);
+          return (
+            <button
+              type="button"
+              key={ROADMAP.id}
+              className={`card c-roadmap${spinning[ROADMAP.id] ? " spinning" : ""}${isRoadmap ? " picked" : ""}`}
+              style={{ transform: p.t, zIndex: p.z, opacity: p.hidden ? 0 : 1, pointerEvents: p.hidden ? "none" : undefined }}
+              onClick={() => pick(ROADMAP.id)}
+              onMouseEnter={() => mode === "fan" && !shuffle && setHovered(ROADMAP.id)}
+              onMouseLeave={() => setHovered((h) => (h === ROADMAP.id ? null : h))}
+              aria-label="AI Roadmap: a learning plan for any other language"
+            >
+              <span className="inner">
+                <span className="face front">
+                  <span className="num">AI</span>
+                  <span className="badge-in new">New</span>
+                  <span className="glyph"><CompassIcon /></span>
+                  <span className="h3">{ROADMAP.name}</span>
+                  <span className="tag">{ROADMAP.tag}</span>
+                  <span className="line">{ROADMAP.line}</span>
+                  <span className="meta">
+                    <span>6–10 stages · your pace</span>
+                    <span className="ai-dot">✦</span>
+                  </span>
+                </span>
+                <span className="face back"><b>&gt;_</b></span>
+              </span>
+            </button>
+          );
+        })()}
+
+        <div className={`panel${(lang || isRoadmap) && panelOn ? " show" : ""}`}>
+          {isRoadmap && (
+            <>
+              <div className="k">{ROADMAP.tag} · {ROADMAP.runs}</div>
+              <h2>Your own <span>AI Roadmap</span></h2>
+              <p className="d">{ROADMAP.about}</p>
+              <div className="stats">
+                <div className="stat"><b>6–10</b><span>stages</span></div>
+                <div className="stat"><b>Any</b><span>language</span></div>
+                <div className="stat"><b>Debug</b><span>tasks</span></div>
+                <div className="stat"><b>1</b><span>capstone</span></div>
+              </div>
+              <div className="cols">
+                <div>
+                  <h4>How it works</h4>
+                  <div className="lvls">
+                    {ROADMAP.steps.map((t, i) => (
+                      <div className="lv" key={t} style={{ "--i": i }}><b>{String(i + 1).padStart(2, "0")}</b>{t}</div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h4>Popular picks · tap one</h4>
+                  <div className="chips picks">{ROADMAP.picks.map((t, i) => (
+                    <button type="button" key={t} style={{ "--i": i }} onClick={() => openRoadmaps(t)}>{t}</button>
+                  ))}</div>
+                  <h4 style={{ marginTop: 14 }}>A taste of a roadmap</h4>
+                  <div className="rm-sample">
+                    {ROADMAP.sample.map(([n, t, w], i) => (
+                      <div key={n} style={{ "--i": i }}><b>{n}</b><span>{t}</span><em>{w}</em></div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="acts">
+                <button type="button" className="btn pri" onClick={() => openRoadmaps()}>Generate a roadmap →</button>
+                <button type="button" className="btn ghost" onClick={backToCards}>All cards</button>
+              </div>
+            </>
+          )}
           {lang && (
             <>
               <div className="k">{lang.tag} · {lang.runs}</div>
