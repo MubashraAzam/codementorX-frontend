@@ -1,0 +1,156 @@
+// Tiny syntax highlighter + markdown renderer for the level page.
+// Everything is escaped first, so AI text can never inject HTML.
+
+export function esc(s) {
+  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+const KEYWORDS = {
+  python: "if|elif|else|and|or|not|True|False|None|for|in|while|def|return|class|import|from|as|try|except|finally|raise|with|break|continue|pass|lambda|is|global|self",
+  cpp: "if|else|switch|case|default|for|while|do|break|continue|return|int|float|double|char|bool|void|string|auto|const|true|false|class|struct|public|private|protected|new|delete|using|namespace|include|template|typename|virtual|override|try|catch|throw|nullptr|std|vector|map|set",
+  java: "if|else|switch|case|default|for|while|do|break|continue|return|int|float|double|char|boolean|void|String|true|false|class|public|private|protected|static|new|import|try|catch|throw|null|this|extends|implements",
+  javascript: "if|else|switch|case|default|for|while|do|break|continue|return|let|const|var|function|true|false|null|undefined|class|new|import|export|from|try|catch|throw|this|of|in",
+};
+const BUILTINS = {
+  python: "print|input|int|float|str|len|range|type|list|dict|set|tuple|open|abs|min|max|sum|round|sorted",
+  cpp: "cout|cin|endl|getline|main|printf|scanf|size|push_back",
+  java: "System|out|println|print|Scanner|nextInt|nextLine|main|length",
+  javascript: "console|log|prompt|alert|Math|parseInt|parseFloat|length|push",
+};
+
+const reCache = {};
+function tokenRe(lang) {
+  if (!reCache[lang]) {
+    const comment = lang === "python" ? "#.*$" : "\\/\\/.*$|#include.*$";
+    reCache[lang] = new RegExp(
+      `(${comment})|("(?:[^"\\\\]|\\\\.)*"?|'(?:[^'\\\\]|\\\\.)*'?)|\\b(${KEYWORDS[lang] || KEYWORDS.python})\\b|\\b(${BUILTINS[lang] || BUILTINS.python})\\b|\\b(\\d+(?:\\.\\d+)?)\\b|(>=|<=|==|!=|<<|>>|&&|\\|\\||[%+\\-*/<>=!])`,
+      "g",
+    );
+  }
+  return reCache[lang];
+}
+
+export function highlightLine(line, lang = "python") {
+  const re = tokenRe(lang);
+  re.lastIndex = 0;
+  let out = "";
+  let last = 0;
+  let m;
+  while ((m = re.exec(line))) {
+    if (m[0] === "") {
+      re.lastIndex += 1;
+      continue;
+    }
+    out += esc(line.slice(last, m.index));
+    const t = esc(m[0]);
+    if (m[1]) out += `<span class="c">${t}</span>`;
+    else if (m[2]) out += `<span class="s">${t}</span>`;
+    else if (m[3]) out += `<span class="k">${t}</span>`;
+    else if (m[4]) out += `<span class="f">${t}</span>`;
+    else if (m[5]) out += `<span class="nm">${t}</span>`;
+    else out += `<span class="op">${t}</span>`;
+    last = re.lastIndex;
+  }
+  return out + esc(line.slice(last));
+}
+
+export function codeCardHTML(code, lang, label) {
+  const lines = code.replace(/\n$/, "").split("\n");
+  const body = lines.map((l, i) => `<span class="l" data-n="${i + 1}">${highlightLine(l, lang) || " "}</span>`).join("");
+  return `<div class="code"><div class="chead"><i></i><i></i><i></i><span class="fn">${esc(label || lang)}</span></div><pre>${body}</pre></div>`;
+}
+
+function inline(s) {
+  return esc(s)
+    .replace(/`([^`\n]+)`/g, '<code class="in">$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<i>$2</i>");
+}
+export { inline as inlineMarkdown };
+
+const FENCE_LANG = { py: "python", python: "python", cpp: "cpp", "c++": "cpp", c: "cpp", java: "java", js: "javascript", javascript: "javascript", jsx: "javascript" };
+
+export function renderMarkdown(md, defaultLang = "python") {
+  if (!md) return "";
+  const blocks = [];
+  const text = md.replace(/```([\w+#-]*)[^\n]*\n?([\s\S]*?)```/g, (_, lang, code) => {
+    blocks.push({ lang: FENCE_LANG[(lang || "").toLowerCase()] || (lang ? "python" : defaultLang), raw: lang, code });
+    return `\n@@CODE${blocks.length - 1}@@\n`;
+  });
+  let html = "";
+  let para = [];
+  let list = null;
+  const flushPara = () => {
+    if (para.length) html += `<p>${para.map(inline).join("<br>")}</p>`;
+    para = [];
+  };
+  const flushList = () => {
+    if (list) html += `<${list.type}>${list.items.map((li) => `<li>${inline(li)}</li>`).join("")}</${list.type}>`;
+    list = null;
+  };
+  for (const raw of text.split("\n")) {
+    const line = raw.trim();
+    const cb = line.match(/^@@CODE(\d+)@@$/);
+    if (!line) {
+      flushPara();
+      flushList();
+    } else if (cb) {
+      flushPara();
+      flushList();
+      const b = blocks[Number(cb[1])];
+      html += codeCardHTML(b.code, b.lang, b.raw || b.lang);
+    } else if (/^#{1,4}\s/.test(line)) {
+      flushPara();
+      flushList();
+      html += `<h4>${inline(line.replace(/^#{1,4}\s+/, ""))}</h4>`;
+    } else if (/^([-*•]|\d+[.)])\s+/.test(line)) {
+      flushPara();
+      const type = /^\d/.test(line) ? "ol" : "ul";
+      if (!list || list.type !== type) {
+        flushList();
+        list = { type, items: [] };
+      }
+      list.items.push(line.replace(/^([-*•]|\d+[.)])\s+/, ""));
+    } else if (/^>\s?/.test(line)) {
+      flushPara();
+      flushList();
+      html += `<div class="note tip"><span class="e">💡</span><span>${inline(line.replace(/^>\s?/, ""))}</span></div>`;
+    } else {
+      flushList();
+      para.push(line);
+    }
+  }
+  flushPara();
+  flushList();
+  return html;
+}
+
+// Splits the AI lesson into sections at "## " headings (for the contents list).
+export function splitSections(md) {
+  if (!md) return [];
+  const lines = md.replace(/\r/g, "").split("\n");
+  const level = lines.some((l) => /^##\s/.test(l)) ? /^##\s+(.*)/ : /^#\s+(.*)/;
+  const out = [];
+  let cur = null;
+  let inFence = false;
+  for (const l of lines) {
+    if (/^\s*```/.test(l)) inFence = !inFence;
+    const m = !inFence && l.match(level);
+    if (m) {
+      cur = { title: m[1].replace(/[*#`]/g, "").trim(), body: [] };
+      out.push(cur);
+    } else {
+      if (!cur) {
+        if (!l.trim() || /^#\s/.test(l)) continue;
+        cur = { title: "Introduction", body: [] };
+        out.push(cur);
+      }
+      cur.body.push(l);
+    }
+  }
+  return out.map((s) => ({ title: s.title, body: s.body.join("\n").trim() })).filter((s) => s.body || s.title);
+}
+
+export function plainText(md) {
+  return (md || "").replace(/```[\s\S]*?```/g, " ").replace(/[#*`>]/g, "").replace(/\s+/g, " ").trim();
+}
