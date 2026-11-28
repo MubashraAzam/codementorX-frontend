@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { apiRequest } from "../utils/api";
-import { LANGS, LEVELS, topicsOf } from "./level/levelData";
-import { loadExercises, loadFullLesson, loadOverview, loadQuiz } from "./level/levelAI";
+import { LANGS, topicsOf } from "./level/levelData";
+import { askHint, askPair, askTutor, loadExample, loadFullLesson, loadOverview, loadPractice, toHistory } from "./level/levelAI";
 import { plainText } from "./level/markup";
-import { useTutor } from "./level/useTutor";
+import { useChat } from "./level/useTutor";
 import { Icon, Star } from "./level/ui";
 import LessonTab from "./level/LessonTab";
 import CodeTab from "./level/CodeTab";
@@ -32,6 +31,20 @@ function writeLS(key, value) {
     /* ignore */
   }
 }
+function readRaw(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function writeRaw(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* ignore */
+  }
+}
 function readTheme() {
   try {
     return localStorage.getItem("cmx-theme") === "dark" ? "dark" : "light";
@@ -40,15 +53,30 @@ function readTheme() {
   }
 }
 
+const STARTER = {
+  python: "# Write your Python code here\nname = input()\nprint(\"Hello,\", name)\n",
+  cpp: "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your C++ code here\n    cout << \"Hello!\" << endl;\n    return 0;\n}\n",
+  java: "public class Main {\n    public static void main(String[] args) {\n        // Write your Java code here\n        System.out.println(\"Hello!\");\n    }\n}\n",
+  javascript: "// Write your JavaScript code here\nconsole.log(\"Hello!\");\n",
+  react: "export default function App() {\n  return <h1>Hello from React!</h1>;\n}\n",
+};
+
 const TABS = [
   { id: "lesson", icon: "book", label: "Lesson", sub: "Theory · examples" },
-  { id: "code", icon: "code", label: "Code", sub: "Write & run" },
-  { id: "practice", icon: "pen", label: "Exercises", sub: "3 tasks with tests" },
+  { id: "code", icon: "code", label: "Code", sub: "Write, run & pair" },
+  { id: "practice", icon: "pen", label: "Exercises", sub: "3 practice tasks" },
   { id: "quiz", icon: "check", label: "MCQs", sub: "10 questions · earn ★" },
 ];
 
-// Loads one kind of AI content for this level (with cache), and lets you reload it.
-function useAIData(loader, ctx, enabled) {
+const PAIR_ACTIONS = [
+  { id: "explain", label: "Explain my code" },
+  { id: "bugs", label: "Find bugs" },
+  { id: "hint", label: "I'm stuck" },
+  { id: "improve", label: "Improve it" },
+];
+
+// Loads one kind of server content for this level, and lets you reload it.
+function useServerData(loader, ctx, enabled) {
   const [state, setState] = useState({ key: "", value: null, error: "" });
   const [nonce, setNonce] = useState(0);
   const key = `${ctx.language}|${ctx.levelIndex}|${ctx.uiLang}|${nonce}`;
@@ -97,15 +125,22 @@ function LevelInner({
   language = "python",
   levelIndex = 0,
   progress = { doneLevels: [], stars: {}, currentLevel: 0 },
+  levels = [],
   onBack,
   onComplete,
   onNavigate,
 }) {
-  const lang = LEVELS[language] ? language : "python";
-  const idx = Math.min(Math.max(Number(levelIndex) || 0, 0), LEVELS[lang].length - 1);
-  const level = LEVELS[lang][idx];
+  const lang = LANGS[language] ? language : "python";
+  const total = levels.length || 20;
+  const idx = Math.min(Math.max(Number(levelIndex) || 0, 0), total - 1);
+  const level = useMemo(() => levels[idx] || { title: `Level ${idx + 1}`, sub: "", cat: "" }, [levels, idx]);
   const L = LANGS[lang];
   const lsBase = `cmx_lvl:${lang}:${idx}`;
+  const labKey = `cmx_pair_${lang}_${idx}`; // same key as the old Code Lab, so saved code is kept
+  const doneLevels = progress?.doneLevels || [];
+  // Module 2.3 — a level opens only after the previous one is completed.
+  const isLocked = idx > 0 && !doneLevels.includes(idx - 1);
+  const isDone = doneLevels.includes(idx);
 
   const rootRef = useRef(null);
   const canvasRef = useRef(null);
@@ -121,15 +156,23 @@ function LevelInner({
   const [starPop, setStarPop] = useState(false);
   const [sessionXP, setSessionXP] = useState(0);
   const [hintsUsed, setHintsUsed] = useState(0);
+  const [labCode, setLabCodeState] = useState(() => readRaw(labKey));
+  const [labTask, setLabTask] = useState(null);
 
   const ctx = useMemo(() => ({ language: lang, levelIndex: idx, uiLang, level }), [lang, idx, uiLang, level]);
 
-  const overview = useAIData(loadOverview, ctx, true);
-  const lesson = useAIData(loadFullLesson, ctx, true);
-  const exercises = useAIData(loadExercises, ctx, !!visited.practice);
-  const quiz = useAIData(loadQuiz, ctx, !!visited.quiz);
+  const overview = useServerData(loadOverview, ctx, !isLocked);
+  const lesson = useServerData(loadFullLesson, ctx, !isLocked);
+  const practice = useServerData(loadPractice, ctx, !isLocked && !!visited.practice);
 
-  const tutor = useTutor(ctx, username);
+  const tutor = useChat(`Hi ${username}! Today is **${level.title}**. Ask me anything while you read. I can also explain in Urdu.`);
+  const pair = useChat(`I'm your pair-programming partner. I can see your code. Write something, then press a button below or ask me a question.`);
+
+  const labCodeValue = labCode ?? (overview.value?.example?.code || STARTER[lang] || "");
+  function setLabCode(v) {
+    setLabCodeState(v);
+    writeRaw(labKey, v);
+  }
 
   /* ----- theme (shared with the other pages) ----- */
   useEffect(() => {
@@ -242,29 +285,41 @@ function LevelInner({
       return next;
     });
   }
-  async function onQuizFinish({ stars }) {
+  function openInLab(exercise, code) {
+    setLabTask(exercise);
+    setLabCode(code || exercise.starterCode || "");
+    openTab("code");
+  }
+  // The server graded the quiz and saved the stars (Module 2.2); just reflect it here.
+  function onQuizFinish(result) {
+    const stars = result?.stars || 0;
     if (stars <= 0) return;
     markDone("quiz");
     if (stars > earnedStars) {
       setEarnedStars(stars);
       setStarPop(true);
     }
-    try {
-      await apiRequest(`/api/progress/${lang}/level`, { method: "PUT", body: { levelIndex: idx, stars } });
-    } catch {
-      /* the page still works offline; progress is saved next time */
-    }
-    onComplete?.(idx, stars);
+    onComplete?.(idx, stars, result.progress);
   }
   function goLevel(i) {
-    if (i < 0 || i >= LEVELS[lang].length) return;
+    if (i < 0 || i >= total) return;
     onNavigate?.(i);
   }
 
-  const baseXP = (progress?.doneLevels?.length || 0) * 50 + Object.values(progress?.stars || {}).reduce((a, b) => a + (Number(b) || 0), 0) * 10;
+  function tutorSend(question) {
+    tutor.run(question, (history) => askTutor(ctx, question, toHistory(history)), { ur: uiLang === "ur" });
+  }
+  function askPartner(action, message = "", error = "") {
+    const label = action === "chat" ? message : PAIR_ACTIONS.find((a) => a.id === action)?.label || message;
+    const task = labTask ? `${labTask.title}\n${labTask.description}${labTask.expectedOutput ? `\nExpected output: ${labTask.expectedOutput}` : ""}` : "";
+    if (action !== "chat" && !labCodeValue.trim()) return;
+    pair.run(label, (history) => askPair(ctx, { action, code: labCodeValue, message: action === "chat" ? message : "", error, task, history: toHistory(history) }), { ur: uiLang === "ur" });
+  }
+
+  const baseXP = doneLevels.length * 50 + Object.values(progress?.stars || {}).reduce((a, b) => a + (Number(b) || 0), 0) * 10;
   const tabIndex = TABS.findIndex((t) => t.id === tab);
   const speakText = tab === "lesson" ? (lesson.value ? plainText(lesson.value) : plainText(overview.value?.bigIdea || "")) : "";
-  const isDone = progress?.doneLevels?.includes(idx);
+  const placeholder = uiLang === "ur" ? "یہاں سوال لکھیں…" : tab === "code" ? "Ask your partner about your code…" : "Ask the tutor anything…";
 
   return (
     <div className={`cmxl${tab === "lesson" ? " on-lesson" : ""}`} data-theme={theme} ref={rootRef}>
@@ -277,11 +332,11 @@ function LevelInner({
           <button type="button" className="back" onClick={() => onBack?.()}><Icon name="back" />Dashboard</button>
           <div className="ttl">
             <div className="kk">
-              {L.name} · <b>Level {idx + 1}</b> of {LEVELS[lang].length} · {level.cat}
+              {L.name} · <b>Level {idx + 1}</b> of {total}{level.cat ? ` · ${level.cat}` : ""}
               {isDone && <span style={{ color: "var(--ok)" }}>✓</span>}
               <span className="lvnav">
                 <button type="button" onClick={() => goLevel(idx - 1)} disabled={idx === 0} aria-label="Previous level"><Icon name="left" /></button>
-                <button type="button" onClick={() => goLevel(idx + 1)} disabled={idx === LEVELS[lang].length - 1} aria-label="Next level"><Icon name="right" /></button>
+                <button type="button" onClick={() => goLevel(idx + 1)} disabled={idx === total - 1} aria-label="Next level"><Icon name="right" /></button>
               </span>
             </div>
             <BounceTitle text={level.title} />
@@ -302,82 +357,131 @@ function LevelInner({
           <div className="readbar"><i ref={readRef} /></div>
         </header>
 
-        {/* ---------------- 4 STEPS ---------------- */}
-        <nav className="stepper" aria-label="Level steps">
-          <span className="sind" style={{ transform: `translateX(calc(${tabIndex * 100}% + ${tabIndex * 10}px))` }} />
-          {TABS.map((t) => (
-            <button key={t.id} type="button" className={`step${tab === t.id ? " on" : ""}${doneTabs.includes(t.id) ? " done" : ""}`} onClick={() => openTab(t.id)} aria-current={tab === t.id ? "step" : undefined}>
-              <span className="n"><Icon name={t.icon} /></span>
-              <span><b>{t.label}</b><small>{t.sub}</small></span>
-              <span className="tick">✓</span>
-            </button>
-          ))}
-        </nav>
+        {isLocked ? (
+          <article className="card locked-card">
+            <div className="lk"><Icon name="lock" /></div>
+            <h2>Level {idx + 1} is locked</h2>
+            <p>Pass the Level {idx} MCQs to open this level.</p>
+            <button type="button" className="btn" onClick={() => goLevel(idx - 1)}>Go to Level {idx} <span>→</span></button>
+          </article>
+        ) : (
+          <>
+            {/* ---------------- 4 STEPS ---------------- */}
+            <nav className="stepper" aria-label="Level steps">
+              <span className="sind" style={{ transform: `translateX(calc(${tabIndex * 100}% + ${tabIndex * 10}px))` }} />
+              {TABS.map((t) => (
+                <button key={t.id} type="button" className={`step${tab === t.id ? " on" : ""}${doneTabs.includes(t.id) ? " done" : ""}`} onClick={() => openTab(t.id)} aria-current={tab === t.id ? "step" : undefined}>
+                  <span className="n"><Icon name={t.icon} /></span>
+                  <span><b>{t.label}</b><small>{t.sub}</small></span>
+                  <span className="tick">✓</span>
+                </button>
+              ))}
+            </nav>
 
-        <div className="layout">
-          <main>
-            <section className="view on" key={tab}>
-              {tab === "lesson" && (
-                <LessonTab
-                  ctx={ctx}
-                  langName={L.name}
-                  langFence={L.fence}
-                  overview={overview.value}
-                  lesson={lesson.value}
-                  lessonError={lesson.error}
-                  rootRef={rootRef}
-                  uiLang={uiLang}
-                  setUiLang={setUiLang}
-                  onRegenOverview={overview.reload}
-                  onRegenLesson={lesson.reload}
-                  onAsk={tutor.ask}
-                  onNext={() => goNext("lesson", "code")}
-                />
-              )}
-              {tab === "code" && (
-                <CodeTab ctx={ctx} langFence={L.fence} langName={L.name} example={overview.value?.example} onNext={() => goNext("code", "practice")} />
-              )}
-              {tab === "practice" && (
-                <ExercisesTab
-                  ctx={ctx}
-                  langFence={L.fence}
-                  langName={L.name}
-                  exercises={exercises.value}
-                  error={exercises.error}
-                  onReload={exercises.reload}
-                  solved={solved}
-                  onSolved={onSolved}
-                  rootRef={rootRef}
-                  onNext={() => goNext("practice", "quiz")}
-                />
-              )}
-              {tab === "quiz" && (
-                <QuizTab
-                  ctx={ctx}
-                  langFence={L.fence}
-                  quiz={quiz.value}
-                  error={quiz.error}
-                  onReload={quiz.reload}
-                  rootRef={rootRef}
-                  canvasRef={canvasRef}
-                  username={username}
-                  hintsUsed={hintsUsed}
-                  onHint={() => setHintsUsed((h) => h + 1)}
-                  onXP={(n) => setSessionXP((x) => x + n)}
-                  onFinish={onQuizFinish}
-                  onReview={() => openTab("lesson")}
-                  onNextLevel={() => goLevel(idx + 1)}
-                  isLastLevel={idx === LEVELS[lang].length - 1}
-                  ur={uiLang === "ur"}
-                />
-              )}
-            </section>
-          </main>
+            <div className="layout">
+              <main>
+                <section className="view on" key={tab}>
+                  {tab === "lesson" && (
+                    <LessonTab
+                      ctx={ctx}
+                      langName={L.name}
+                      langFence={L.fence}
+                      overview={overview.value}
+                      overviewError={overview.error}
+                      lesson={lesson.value}
+                      lessonError={lesson.error}
+                      rootRef={rootRef}
+                      uiLang={uiLang}
+                      setUiLang={setUiLang}
+                      onRegenOverview={overview.reload}
+                      onRegenLesson={lesson.reload}
+                      fetchLessonHint={(step) => askHint(ctx, step, { type: "lesson" })}
+                      onLoadExample={() => loadExample(ctx)}
+                      onNext={() => goNext("lesson", "code")}
+                    />
+                  )}
+                  {tab === "code" && (
+                    <CodeTab
+                      ctx={ctx}
+                      langName={L.name}
+                      code={labCodeValue}
+                      setCode={setLabCode}
+                      starter={STARTER[lang] || ""}
+                      task={labTask}
+                      onClearTask={() => setLabTask(null)}
+                      example={overview.value?.example}
+                      onAskPartner={askPartner}
+                      onNext={() => goNext("code", "practice")}
+                    />
+                  )}
+                  {tab === "practice" && (
+                    <ExercisesTab
+                      ctx={ctx}
+                      langFence={L.fence}
+                      langName={L.name}
+                      practice={practice.value}
+                      error={practice.error}
+                      onReload={practice.reload}
+                      solved={solved}
+                      onSolved={onSolved}
+                      rootRef={rootRef}
+                      onOpenInLab={openInLab}
+                      onNext={() => goNext("practice", "quiz")}
+                    />
+                  )}
+                  {tab === "quiz" && (
+                    <QuizTab
+                      ctx={ctx}
+                      langFence={L.fence}
+                      rootRef={rootRef}
+                      canvasRef={canvasRef}
+                      username={username}
+                      hintsUsed={hintsUsed}
+                      onHint={() => setHintsUsed((h) => h + 1)}
+                      onXP={(n) => setSessionXP((x) => x + n)}
+                      onFinish={onQuizFinish}
+                      onReview={() => openTab("lesson")}
+                      onNextLevel={() => goLevel(idx + 1)}
+                      isLastLevel={idx === total - 1}
+                    />
+                  )}
+                </section>
+              </main>
 
-          <aside className="aside">
-            <TutorPanel tutor={tutor} uiLang={uiLang} setUiLang={setUiLang} speakText={speakText} langFence={L.fence} levelTitle={level.title} />
-          </aside>
-        </div>
+              <aside className="aside">
+                {tab === "code" ? (
+                  <TutorPanel
+                    title="AI Partner"
+                    sub="Sees your code"
+                    chat={pair}
+                    onSend={(text) => askPartner("chat", text)}
+                    chips={PAIR_ACTIONS.map((a) => ({ label: a.label, onClick: () => askPartner(a.id) }))}
+                    uiLang={uiLang}
+                    setUiLang={setUiLang}
+                    langFence={L.fence}
+                    placeholder={placeholder}
+                  />
+                ) : (
+                  <TutorPanel
+                    title="AI Tutor"
+                    sub="Knows this level"
+                    chat={tutor}
+                    onSend={tutorSend}
+                    chips={(uiLang === "ur"
+                      ? ["آسان الفاظ میں سمجھائیں", "ایک اور مثال دیں"]
+                      : ["Explain simpler", "Show another example", "Quiz me on this"]
+                    ).map((label) => ({ label, onClick: () => tutorSend(label) }))}
+                    uiLang={uiLang}
+                    setUiLang={setUiLang}
+                    speakText={speakText}
+                    langFence={L.fence}
+                    placeholder={placeholder}
+                  />
+                )}
+              </aside>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

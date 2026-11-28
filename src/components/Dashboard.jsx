@@ -94,8 +94,14 @@ export default function Dashboard({
   onLevelOpen,
   onLogout,
   onUpdateProfile,
+  enrollments = [],
+  emailVerified = true,
+  onSwitchCourse,
+  onAddCourse,
+  curriculum = null,
+  onOpenRoadmaps,
 }) {
-  const [page, setPage] = useState(null); // null | "projects"
+  const [page, setPage] = useState(null); // null | "projects" | "interview" | "certificate"
   const currentStreak = useStreak(username);
   
   // Modal states
@@ -222,13 +228,16 @@ export default function Dashboard({
   const TRACK_LABELS = { python: "🐍 Python Track", cpp: "⚡ C++ Track", java: "☕ Java Track", javascript: "🟨 JavaScript Track", react: "⚛️ React Track" };
   const langLabel = TRACK_LABELS[language] || language;
 
-  if (page === "projects") {
+  if (page) {
     return (
       <Certificate
         username={username}
         email={email}
         profile={profile}
         language={language}
+        projects={curriculum?.projects || []}
+        projectExtensions={curriculum?.projectExtensions || []}
+        initialView={page}
         onBack={() => setPage(null)}
       />
     );
@@ -243,8 +252,19 @@ export default function Dashboard({
         profile={profile}
         progress={progress}
         streak={currentStreak}
+        email={email}
+        levels={curriculum?.levels || []}
+        projectList={curriculum?.projects || []}
+        rules={curriculum?.rules || null}
+        enrollments={enrollments}
+        emailVerified={emailVerified}
+        onSwitchTrack={onSwitchCourse}
+        onAddTrack={onAddCourse}
+        onOpenRoadmaps={onOpenRoadmaps}
         onLevelOpen={onLevelOpen}
         onOpenProjects={() => setPage("projects")}
+        onOpenViva={() => setPage("interview")}
+        onOpenCertificate={() => setPage("certificate")}
         onOpenProfile={openProfile}
         onOpenAbout={() => setShowAbout(true)}
         onLogout={onLogout}

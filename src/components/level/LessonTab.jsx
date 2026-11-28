@@ -3,6 +3,7 @@ import { flushSync } from "react-dom";
 import { splitSections } from "./markup";
 import { glide } from "./fx";
 import { Dots, Icon, InlineMd, Md } from "./ui";
+import HintSteps from "./HintSteps";
 
 /* ---------- "How ... decides" diagram (for condition levels) ---------- */
 function cut(s, n) {
@@ -130,14 +131,14 @@ function Reader({ lesson, lessonError, langFence, rootRef, uiLang, onClose, onRe
         <div className="rbody">
           <nav className="toc" aria-label="Lesson sections">
             {sections.map((s, i) => (
-              <a key={i} className={`${i === active ? "on" : ""}${i < active ? " seen" : ""}`} onClick={() => jump(i)} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && jump(i)}>
+              <a key={i} className={`${s.sub ? "sub " : ""}${i === active ? "on" : ""}${i < active ? " seen" : ""}`} onClick={() => jump(i)} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && jump(i)}>
                 <b>{i + 1}</b>{s.title}
               </a>
             ))}
           </nav>
           <div className={`art${uiLang === "ur" ? " ur-text" : ""}`} ref={artRef}>
             {sections.map((s, i) => (
-              <section key={i}>
+              <section key={i} className={s.sub ? "sub" : ""}>
                 <h3><span className="n">{i + 1}</span>{s.title}</h3>
                 <Md className="rsec-body" text={s.body} lang={langFence} />
               </section>
@@ -154,9 +155,10 @@ function Reader({ lesson, lessonError, langFence, rootRef, uiLang, onClose, onRe
 }
 
 /* ---------- the Lesson tab ---------- */
-export default function LessonTab({ ctx, langName, langFence, overview, lesson, lessonError, rootRef, uiLang, setUiLang, onRegenOverview, onRegenLesson, onAsk, onNext }) {
+export default function LessonTab({ ctx, langName, langFence, overview, overviewError, lesson, lessonError, rootRef, uiLang, setUiLang, onRegenOverview, onRegenLesson, fetchLessonHint, onLoadExample, onNext }) {
   const [reading, setReading] = useState(false);
   const [recapOn, setRecapOn] = useState(false);
+  const [example, setExample] = useState({ loading: false, text: "", error: "" });
   const recapRef = useRef(null);
 
   useEffect(() => {
@@ -196,6 +198,29 @@ export default function LessonTab({ ctx, langName, langFence, overview, lesson, 
         onUrdu={() => setUiLang(uiLang === "ur" ? "en" : "ur")}
         onNext={() => { setReading(false); onNext(); }}
       />
+    );
+  }
+
+  async function moreExamples() {
+    setExample({ loading: true, text: "", error: "" });
+    try {
+      setExample({ loading: false, text: await onLoadExample(), error: "" });
+    } catch (err) {
+      setExample({ loading: false, text: "", error: err.message || "Could not load an example." });
+    }
+  }
+
+  if (!overview && overviewError) {
+    return (
+      <div className="stack">
+        <article className="card">
+          <div className="errbox"><b>Could not prepare the lesson.</b> {overviewError}</div>
+          <div className="btns" style={{ marginTop: 12 }}>
+            <button type="button" className="btn gh sm" onClick={onRegenOverview}><Icon name="refresh" />Try again</button>
+            {lesson && <button type="button" className="btn sm" onClick={open}><Icon name="book" />Read the full lesson</button>}
+          </div>
+        </article>
+      </div>
     );
   }
 
@@ -247,7 +272,7 @@ export default function LessonTab({ ctx, langName, langFence, overview, lesson, 
 
         <article className="card rise" style={{ "--d": ".15s" }}>
           <div className="row"><h3>{flow.title || `How ${langName} decides`}</h3></div>
-          {flow.type === "decision" && flow.checks?.length ? <DecisionFlow flow={flow} /> : <StepsFlow flow={flow} />}
+          {flow.type === "decision" && flow.checks?.length ? <DecisionFlow key={overview.bigIdea} flow={flow} /> : <StepsFlow flow={flow} />}
         </article>
       </div>
 
@@ -293,9 +318,27 @@ export default function LessonTab({ ctx, langName, langFence, overview, lesson, 
         </article>
       </div>
 
+      <article className="card rise" style={{ "--d": ".1s" }}>
+        <div className="row">
+          <h3><span className="ic"><Icon name="bulb" /></span>Stuck on this topic?</h3>
+          <span className="kk">Hints get more specific each time</span>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <HintSteps key={`${ctx.levelIndex}-${uiLang}`} fetchHint={fetchLessonHint} lang={langFence} />
+        </div>
+      </article>
+
+      {(example.loading || example.text || example.error) && (
+        <article className="card">
+          <div className="row"><h3><span className="ic"><Icon name="spark" /></span>Extra example</h3></div>
+          {example.loading && <Dots label="Writing a real-life example…" />}
+          {example.error && <div className="errbox">{example.error}</div>}
+          {example.text && <Md className={`art${ur ? " ur-text" : ""}`} text={example.text} lang={langFence} />}
+        </article>
+      )}
+
       <div className="btns">
-        <button type="button" className="btn gh sm" onClick={() => onAsk(`Give me a hint to understand ${ctx.level.title}`)}><Icon name="bulb" />Hint</button>
-        <button type="button" className="btn gh sm" onClick={() => onAsk(`Show me one more real-life example of ${ctx.level.title}`)}><Icon name="spark" />More examples</button>
+        <button type="button" className="btn gh sm" onClick={moreExamples} disabled={example.loading}><Icon name="spark" />More examples</button>
         <button type="button" className="btn gh sm" onClick={onRegenOverview}><Icon name="refresh" />Explain again</button>
         <button type="button" className="btn" style={{ marginLeft: "auto" }} onClick={onNext}>Next: write code <span>→</span></button>
       </div>

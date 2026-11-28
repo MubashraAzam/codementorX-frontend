@@ -1,7 +1,8 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { apiRequest } from "../../utils/api";
-import { LEVELS, PROJECTS, RULES, TIPS, TRACKS } from "./dashData";
+import { mentor } from "../../utils/mentor";
+import { LEVELS, PROJECTS, TIPS, TRACKS } from "./dashData";
 import { addStudyMinute, dayKey, readStudy } from "./studyTime";
 import "./pinkDashboard.css";
 
@@ -79,6 +80,8 @@ const ICONS = {
   medal: <><circle cx="12" cy="9" r="6" /><path d="M8.5 14L7 22l5-3 5 3-1.5-8" /></>,
   gear: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></>,
   info: <><circle cx="12" cy="12" r="9" /><path d="M12 16v-4M12 8h.01" /></>,
+  compass: <><circle cx="12" cy="12" r="9" /><path d="M15.5 8.5l-2 5-5 2 2-5z" /></>,
+  mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></>,
   out: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></>,
   chart: <path d="M4 20h16M6 16V9M12 16V4M18 16v-5" />,
   star: <path d="M12 2l3 7h7l-5.5 4.5L18.5 21 12 16.5 5.5 21l2-7.5L2 9h7z" />,
@@ -351,7 +354,8 @@ function WeekBars({ username }) {
 
 const NAV = [
   { id: "home", icon: "home", label: "Home" },
-  { id: "roadmap", icon: "map", label: "My roadmap" },
+  { id: "roadmap", icon: "map", label: "My path" },
+  { id: "airoadmap", icon: "compass", label: "AI Roadmap" },
   { id: "lab", icon: "code", label: "Code Lab" },
   { id: "mentor", icon: "bulb", label: "AI Mentor" },
   { id: "projects", icon: "case", label: "Projects" },
@@ -361,6 +365,15 @@ const NAV = [
 
 export default function PinkDashboard({
   username = "Student",
+  email = "",
+  levels = [],
+  projectList = [],
+  rules = null,
+  enrollments = [],
+  emailVerified = true,
+  onOpenRoadmaps,
+  onOpenViva,
+  onOpenCertificate,
   language = "python",
   profile = {},
   progress = { doneLevels: [], stars: {}, currentLevel: 0 },
@@ -374,10 +387,20 @@ export default function PinkDashboard({
   onAddTrack,
   onUpdateProfile,
 }) {
-  const lang = LEVELS[language] ? language : "python";
-  const names = LEVELS[lang];
-  const projects = PROJECTS[lang];
+  // Levels and projects come from the backend curriculum (Module 2.1) for all 5 tracks.
+  const lang = TRACKS[language] ? language : "python";
+  const names = levels.length ? levels.map((l) => l.title) : LEVELS[lang] || LEVELS.python;
+  const projects = projectList.length ? projectList.map((p) => p.title) : PROJECTS[lang] || PROJECTS.python;
+  const projectIds = projectList.length ? projectList.map((p, i) => p.id ?? i) : projects.map((_, i) => i);
   const trackInfo = TRACKS[lang];
+  // Same rules as the server (data/curriculum.js RULES)
+  const R = {
+    totalLevels: rules?.levelsRequired || names.length || 20,
+    projectsNeeded: rules?.projectsRequired ?? 5,
+    projectPassStars: rules?.projectPassStars ?? 2,
+    vivaPassMark: rules?.interviewPassPercent ?? 75,
+  };
+  const enrollKey = (enrollments || []).map((e) => (typeof e === "string" ? e : e?.language)).filter(Boolean).join(",");
 
   const rootRef = useRef(null);
   const navRef = useRef(null);
@@ -394,6 +417,7 @@ export default function PinkDashboard({
   const [switching, setSwitching] = useState(null);
   const [question, setQuestion] = useState("");
   const [chat, setChat] = useState({ lang: null, q: "", a: "", loading: false });
+  const [verify, setVerify] = useState({ busy: false, msg: "" });
 
   /* ----- theme (shared with the landing page through localStorage) ----- */
   useEffect(() => {
@@ -441,7 +465,7 @@ export default function PinkDashboard({
   /* ----- the student's other tracks (for the sidebar) ----- */
   useEffect(() => {
     let alive = true;
-    fetchEnrollments()
+    (enrollKey ? Promise.resolve(enrollKey.split(",")) : fetchEnrollments())
       .then((list) =>
         Promise.all(
           list.map((l) =>
@@ -455,7 +479,7 @@ export default function PinkDashboard({
     return () => {
       alive = false;
     };
-  }, [lang]);
+  }, [lang, enrollKey]);
 
   /* ----- cards rise in when they scroll into view ----- */
   useEffect(() => {
@@ -486,7 +510,7 @@ export default function PinkDashboard({
   const starsMap = progress?.stars || {};
   const doneSet = new Set(doneLevels);
   const doneCount = doneSet.size;
-  const total = RULES.totalLevels;
+  const total = R.totalLevels;
   const current = Math.min(progress?.currentLevel || 0, total - 1);
   const allLevelsDone = doneCount >= total;
   const starTotal = Object.values(starsMap).reduce((a, b) => a + (Number(b) || 0), 0);
@@ -494,14 +518,16 @@ export default function PinkDashboard({
 
   const extra = extraState.lang === lang ? extraState.data : null;
   const solvedProjects = extra?.solvedProjects || {};
-  const projectStars = (i) => Number(solvedProjects[i]?.stars ?? solvedProjects[String(i)]?.stars ?? 0);
-  const solvedCount = projects.filter((_, i) => projectStars(i) >= RULES.projectPassStars).length;
+  const projectRec = (i) => solvedProjects[projectIds[i]] || solvedProjects[String(projectIds[i])] || null;
+  const projectStars = (i) => Number(projectRec(i)?.stars ?? 0);
+  // Flagged (possibly copied) projects do not count, same as the server rule.
+  const solvedCount = projects.filter((_, i) => projectStars(i) >= R.projectPassStars && !projectRec(i)?.flagged).length;
   const projectStarTotal = projects.reduce((n, _, i) => n + projectStars(i), 0);
   const interview = extra?.interview || {};
   const vivaScore = typeof interview.percentage === "number" ? interview.percentage : null;
-  const vivaPassed = Boolean(interview.passed) || (vivaScore !== null && vivaScore >= RULES.vivaPassMark);
+  const vivaPassed = Boolean(interview.passed) || (vivaScore !== null && vivaScore >= R.vivaPassMark);
   const certificate = extra?.certificate || null;
-  const vivaOpen = solvedCount >= RULES.projectsNeeded;
+  const vivaOpen = solvedCount >= R.projectsNeeded;
   const xp = doneCount * 50 + starTotal * 10 + projectStarTotal * 20;
 
   const firstName = profile?.firstName || username;
@@ -510,16 +536,24 @@ export default function PinkDashboard({
 
   const trackIds = [...new Set([...tracks.list, lang])].filter((id) => TRACKS[id]);
 
-  // Topics to revise = finished levels that still have fewer than 3 stars.
-  const revise = doneLevels
-    .filter((i) => (Number(starsMap[i]) || 0) < 3)
-    .sort((a, b) => (Number(starsMap[a]) || 0) - (Number(starsMap[b]) || 0))
-    .slice(0, 3);
+  // Revise next = weak topics from the latest MCQ reports (Module 2.2); else levels with fewer than 3 stars.
+  const reports = Object.entries(extra?.levelReports || {})
+    .map(([i, r]) => ({ i: Number(i), r }))
+    .filter((x) => x.r && Array.isArray(x.r.weakTopics) && x.r.weakTopics.length)
+    .sort((a, b) => new Date(b.r.at || 0) - new Date(a.r.at || 0));
+  const weak = reports.flatMap((x) => x.r.weakTopics.map((topic) => ({ i: x.i, topic, score: x.r.score || 0 }))).slice(0, 3);
+  const revise = weak.length
+    ? weak
+    : doneLevels
+        .filter((i) => (Number(starsMap[i]) || 0) < 3)
+        .sort((a, b) => (Number(starsMap[a]) || 0) - (Number(starsMap[b]) || 0))
+        .slice(0, 3)
+        .map((i) => ({ i, topic: null, score: ((Number(starsMap[i]) || 0) / 3) * 100 }));
 
   let milestone;
   if (!allLevelsDone) milestone = `${total - doneCount} level${total - doneCount === 1 ? "" : "s"} to go for your certificate`;
-  else if (!vivaOpen) milestone = `Solve ${RULES.projectsNeeded - solvedCount} more project${RULES.projectsNeeded - solvedCount === 1 ? "" : "s"} with 2★ to open the AI viva`;
-  else if (!vivaPassed) milestone = `The AI viva is open. Score ${RULES.vivaPassMark}% to pass`;
+  else if (!vivaOpen) milestone = `Solve ${R.projectsNeeded - solvedCount} more project${R.projectsNeeded - solvedCount === 1 ? "" : "s"} with 2★ to open the AI viva`;
+  else if (!vivaPassed) milestone = `The AI viva is open. Score ${R.vivaPassMark}% to pass`;
   else milestone = certificate ? "Certificate issued. Well done!" : "You passed! Claim your certificate";
 
   let bubble;
@@ -528,7 +562,8 @@ export default function PinkDashboard({
   else if (current === total - 1) bubble = "Last level. You can do it!";
   else bubble = `Finish this one and Level ${current + 2} opens!`;
 
-  const tip = TIPS[lang][doneCount % TIPS[lang].length];
+  const tipList = TIPS[lang] || TIPS.general;
+  const tip = tipList[doneCount % tipList.length];
   const chatHere = chat.lang === lang ? chat : null;
 
   /* ----- actions ----- */
@@ -547,13 +582,18 @@ export default function PinkDashboard({
       scrollToEl(mentorRef.current);
       setTimeout(() => askRef.current?.focus({ preventScroll: true }), 500);
     } else if (id === "lab") onLevelOpen?.(current);
+    else if (id === "airoadmap") onOpenRoadmaps?.();
+    else if (id === "viva") (onOpenViva || onOpenProjects)?.();
+    else if (id === "cert") (onOpenCertificate || onOpenProjects)?.();
     else onOpenProjects?.();
   }
 
   async function switchTrack(id) {
     if (id === lang || switching) return;
     if (onSwitchTrack) {
-      onSwitchTrack(id);
+      // Module 1.3 — PUT /api/courses/active through App.jsx
+      setSwitching(id);
+      Promise.resolve(onSwitchTrack(id)).finally(() => setSwitching(null));
       return;
     }
     setSwitching(id);
@@ -577,16 +617,22 @@ export default function PinkDashboard({
     if (!q || chatHere?.loading) return;
     setQuestion("");
     setChat({ lang, q, a: "", loading: true });
-    const prompt =
-      `You are CodeMentorX, a friendly coding mentor for a beginner learning ${trackInfo.name}. ` +
-      `The student is on Level ${current + 1}: ${names[current]}. ` +
-      `Answer in simple English in at most 4 short sentences. Use a tiny code example only if it really helps.\n\n` +
-      `Student: ${q}`;
     try {
-      const data = await apiRequest("/api/ai/ask", { method: "POST", body: { prompt } });
+      // Module 3.3 tutor (the server builds the prompt for the student's current level)
+      const data = await mentor("ask", { language: lang, levelIndex: current, uiLang: "English", question: q, history: [] });
       setChat({ lang, q, a: data?.text || "Sorry, I could not answer that right now.", loading: false });
-    } catch {
-      setChat({ lang, q, a: "The mentor is busy right now. Please try again in a moment.", loading: false });
+    } catch (err) {
+      setChat({ lang, q, a: err?.message || "The mentor is busy right now. Please try again in a moment.", loading: false });
+    }
+  }
+
+  async function resendVerification() {
+    setVerify({ busy: true, msg: "" });
+    try {
+      const res = await apiRequest("/api/auth/resend-verification", { method: "POST" });
+      setVerify({ busy: false, msg: res?.message || "Verification email sent." });
+    } catch (err) {
+      setVerify({ busy: false, msg: err?.message || "Could not send the email." });
     }
   }
 
@@ -601,8 +647,8 @@ export default function PinkDashboard({
   const tiles = [
     { icon: "chart", value: doneCount, of: `/ ${total}`, label: "Levels done", chip: `Level ${current + 1} now` },
     { icon: "star", value: starTotal, of: `/ ${total * 3}`, label: "Stars earned", chip: `${xp} XP` },
-    { icon: "case", value: solvedCount, of: `/ ${RULES.projectsNeeded}`, label: "Projects with 2★+", chip: vivaOpen ? "done" : "for viva" },
-    { icon: "mic", value: vivaScore ?? 0, of: "%", label: "AI viva score", chip: vivaScore === null ? "not taken" : vivaPassed ? "passed" : `need ${RULES.vivaPassMark}%`, empty: vivaScore === null },
+    { icon: "case", value: solvedCount, of: `/ ${R.projectsNeeded}`, label: "Projects with 2★+", chip: vivaOpen ? "done" : "for viva" },
+    { icon: "mic", value: vivaScore ?? 0, of: "%", label: "AI viva score", chip: vivaScore === null ? "not taken" : vivaPassed ? "passed" : `need ${R.vivaPassMark}%`, empty: vivaScore === null },
   ];
 
   return (
@@ -695,6 +741,18 @@ export default function PinkDashboard({
             </div>
           </div>
 
+          {/* Module 1.1 — email verification */}
+          {!emailVerified && (
+            <div className="dz-verify" role="status">
+              <span className="dz-vi"><Icon name="mail" /></span>
+              <div>
+                <b>Verify your email address</b>
+                <small>{verify.msg || `We sent a link to ${email || "your email"}. You need a verified email to get your certificate.`}</small>
+              </div>
+              <button type="button" className="dz-vbtn" onClick={resendVerification} disabled={verify.busy}>{verify.busy ? "Sending…" : "Resend email"}</button>
+            </div>
+          )}
+
           <div className="dz-grid dz-g1">
             {/* continue card */}
             <section className="dz-card dz-cont" style={{ "--d": ".1s" }}>
@@ -732,7 +790,7 @@ export default function PinkDashboard({
                 <div className="dz-kv">
                   <div><span>Levels</span>{doneCount} / {total}</div>
                   <div><span>Stars</span>{starTotal} / {total * 3}</div>
-                  <div><span>Projects (2★+)</span>{solvedCount} / {RULES.projectsNeeded}</div>
+                  <div><span>Projects (2★+)</span>{solvedCount} / {R.projectsNeeded}</div>
                   <div><span>AI viva</span>{vivaPassed ? `${vivaScore ?? ""}% ✓` : vivaOpen ? "Open" : "Locked"}</div>
                 </div>
               </div>
@@ -773,22 +831,22 @@ export default function PinkDashboard({
             </section>
 
             <section className="dz-card" style={{ "--d": ".2s" }}>
-              <div className="dz-row"><h3>Revise next</h3><button type="button" className="dz-link" onClick={() => handleNav("roadmap")}>My roadmap →</button></div>
+              <div className="dz-row"><h3>Revise next</h3><button type="button" className="dz-link" onClick={() => onOpenRoadmaps?.()}>AI roadmap →</button></div>
               <div className="dz-rev" key={lang}>
                 {revise.length === 0 ? (
                   <div className="dz-empty">
-                    {doneCount === 0 ? "Finish your first level and the levels to revise will show up here." : "Every finished level has 3★. Amazing work!"}
+                    {doneCount === 0 ? "Take your first level's MCQs and your weak topics will show up here." : "No weak topics right now. Amazing work!"}
                   </div>
                 ) : (
-                  revise.map((i, k) => {
-                    const s = Number(starsMap[i]) || 0;
-                    return (
-                      <button key={i} type="button" className="dz-rv" style={{ "--d": `${0.3 + k * 0.12}s` }} onClick={() => onLevelOpen?.(i)}>
-                        <div className="dz-row"><b>L{i + 1} · {names[i]}</b><span>{s}★ → 3★</span></div>
-                        <div className="dz-mb"><i style={{ width: `${Math.max(8, (s / 3) * 100)}%` }} /></div>
-                      </button>
-                    );
-                  })
+                  revise.map((x, k) => (
+                    <button key={`${x.i}-${x.topic || k}`} type="button" className="dz-rv" style={{ "--d": `${0.3 + k * 0.12}s` }} onClick={() => onLevelOpen?.(x.i)}>
+                      <div className="dz-row">
+                        <b>{x.topic ? x.topic : `L${x.i + 1} · ${names[x.i]}`}</b>
+                        <span>{x.topic ? `L${x.i + 1} · ${x.score}%` : `${Number(starsMap[x.i]) || 0}★ → 3★`}</span>
+                      </div>
+                      <div className="dz-mb"><i style={{ width: `${Math.max(8, x.score)}%` }} /></div>
+                    </button>
+                  ))
                 )}
               </div>
             </section>
@@ -825,12 +883,12 @@ export default function PinkDashboard({
 
           <div className="dz-grid dz-g4">
             <section className="dz-card" style={{ "--d": ".1s" }}>
-              <div className="dz-row"><h3>Projects</h3><span className="dz-kk">Solve {RULES.projectsNeeded} with 2★ or more</span></div>
+              <div className="dz-row"><h3>Projects</h3><span className="dz-kk">Solve {R.projectsNeeded} with 2★ or more</span></div>
               <div className="dz-projs">
                 {projects.map((p, i) => {
                   const s = projectStars(i);
                   return (
-                    <button key={p} type="button" className={`dz-pj${s >= RULES.projectPassStars ? " solved" : ""}`} onClick={() => onOpenProjects?.()}>
+                    <button key={p} type="button" className={`dz-pj${s >= R.projectPassStars ? " solved" : ""}`} onClick={() => onOpenProjects?.()}>
                       <span className="mono">P{String(i + 1).padStart(2, "0")}</span>
                       <b>{p}</b>
                       <span className="ps"><Stars n={s} /></span>
@@ -841,19 +899,19 @@ export default function PinkDashboard({
             </section>
 
             <section className="dz-card" style={{ "--d": ".2s" }}>
-              <div className="dz-row"><h3>AI viva &amp; certificate</h3><span className="dz-kk">Pass mark {RULES.vivaPassMark}%</span></div>
+              <div className="dz-row"><h3>AI viva &amp; certificate</h3><span className="dz-kk">Pass mark {R.vivaPassMark}%</span></div>
               <div className="dz-req">
                 <div className={`dz-rq${allLevelsDone ? " ok" : ""}`}>
                   <div className="dz-row">20 levels completed<span>{doneCount} / {total}</span></div>
                   <div className="dz-mb"><i style={{ width: `${Math.max(2, pct)}%` }} /></div>
                 </div>
                 <div className={`dz-rq${vivaOpen ? " ok" : ""}`}>
-                  <div className="dz-row">{RULES.projectsNeeded} projects with 2★+<span>{solvedCount} / {RULES.projectsNeeded}</span></div>
-                  <div className="dz-mb"><i style={{ width: `${Math.max(2, (solvedCount / RULES.projectsNeeded) * 100)}%` }} /></div>
+                  <div className="dz-row">{R.projectsNeeded} projects with 2★+<span>{solvedCount} / {R.projectsNeeded}</span></div>
+                  <div className="dz-mb"><i style={{ width: `${Math.max(2, (solvedCount / R.projectsNeeded) * 100)}%` }} /></div>
                 </div>
                 <div className={`dz-rq${vivaPassed ? " ok" : ""}`}>
                   <div className="dz-row">AI viva score<span>{vivaScore === null ? "not taken" : `${vivaScore}%`}</span></div>
-                  <div className="dz-mb"><i style={{ width: `${Math.max(2, Math.min(100, ((vivaScore || 0) / RULES.vivaPassMark) * 100))}%` }} /></div>
+                  <div className="dz-mb"><i style={{ width: `${Math.max(2, Math.min(100, ((vivaScore || 0) / R.vivaPassMark) * 100))}%` }} /></div>
                 </div>
               </div>
               <button type="button" className="dz-cert" onClick={() => onOpenProjects?.()}>

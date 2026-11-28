@@ -1,8 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { starsForScore } from "./levelData";
+import { answerQuiz, askHint, finishQuiz, startQuiz } from "./levelAI";
+import { QUESTION_TYPE } from "./levelData";
 import { confetti, floatXP, sparks } from "./fx";
-import { CodeBlock, Dots, Icon, InlineMd } from "./ui";
+import HintSteps from "./HintSteps";
+import { CodeBlock, Dots, Icon } from "./ui";
 
+/**
+ * MCQs tab = Module 2.2 level assessment.
+ * The server writes 10 questions (4 concept, 3 predict-the-output, 3 find-the-bug),
+ * keeps the answers, reveals each one only after the student locks in a choice,
+ * grades the attempt, records stars/unlocks the next level and returns a topic report.
+ */
 function ResultRing({ pct }) {
   const [on, setOn] = useState(false);
   const [shownPct, setShownPct] = useState(0);
@@ -39,84 +47,147 @@ function ResultRing({ pct }) {
   );
 }
 
-export default function QuizTab({ ctx, langFence, quiz, error, onReload, rootRef, canvasRef, username, hintsUsed, onHint, onXP, onFinish, onReview, onNextLevel, isLastLevel, ur }) {
+function Report({ report }) {
+  const types = Object.entries(report?.byType || {});
+  const topics = Object.entries(report?.byTopic || {});
+  if (!types.length && !topics.length) return null;
+  const pct = (v) => Math.round((v.correct / v.total) * 100);
+  const Bar = ({ label, v }) => (
+    <div className="rq">
+      <div className="row"><span className="rl">{label}</span><span>{v.correct}/{v.total}</span></div>
+      <div className="mb"><i style={{ width: `${Math.max(4, pct(v))}%` }} className={pct(v) < 50 ? "low" : pct(v) < 70 ? "mid" : ""} /></div>
+    </div>
+  );
+  return (
+    <div className="report">
+      <h4>Your performance report</h4>
+      <div className="g2">
+        <div><div className="kk">By question type</div>{types.map(([k, v]) => <Bar key={k} label={v.label || k} v={v} />)}</div>
+        <div><div className="kk">By topic</div>{topics.map(([k, v]) => <Bar key={k} label={k} v={v} />)}</div>
+      </div>
+      {report.weakTopics?.length > 0 && (
+        <div className="weak"><b>Revise next:</b> {report.weakTopics.map((t) => <span key={t}>{t}</span>)}</div>
+      )}
+    </div>
+  );
+}
+
+export default function QuizTab({ ctx, langFence, rootRef, canvasRef, username, onXP, onHint, hintsUsed, onFinish, onReview, onNextLevel, isLastLevel }) {
+  const [quiz, setQuiz] = useState({ loading: true, error: "", attemptId: null, questions: null, key: 0 });
   const [qi, setQi] = useState(0);
-  const [answers, setAnswers] = useState([]);
-  const [hintOpen, setHintOpen] = useState({});
-  const [done, setDone] = useState(false);
+  const [answers, setAnswers] = useState([]); // index of the chosen option per question
+  const [reveal, setReveal] = useState({}); // qi -> { correct, correctIndex, exp }
+  const [result, setResult] = useState(null);
+  const [finishing, setFinishing] = useState(false);
+  const [problem, setProblem] = useState("");
   const [popStars, setPopStars] = useState(false);
   const optsRef = useRef([]);
 
-  const total = quiz?.length || 0;
-  const q = quiz?.[qi];
-  const answered = answers[qi] !== undefined;
-  const correctCount = answers.filter((a, i) => quiz && a === quiz[i]?.ans).length;
-  const score = total ? Math.round((correctCount / total) * 100) : 0;
-  const stars = starsForScore(score);
+  // start (or restart) an attempt on the server
+  const { language, levelIndex } = ctx;
+  useEffect(() => {
+    let alive = true;
+    startQuiz({ language, levelIndex })
+      .then((d) => alive && setQuiz((q) => ({ ...q, loading: false, error: "", attemptId: d.attemptId, questions: d.questions })))
+      .catch((err) => alive && setQuiz((q) => ({ ...q, loading: false, error: err.message || "Could not load the quiz." })));
+    return () => {
+      alive = false;
+    };
+  }, [language, levelIndex, quiz.key]);
 
-  function answer(i) {
-    if (!q || answered || done) return;
-    setAnswers((prev) => {
-      const next = [...prev];
-      next[qi] = i;
-      return next;
+  function restart() {
+    setQuiz((q) => ({ loading: true, error: "", attemptId: null, questions: null, key: q.key + 1 }));
+    setQi(0);
+    setAnswers([]);
+    setReveal({});
+    setResult(null);
+    setProblem("");
+    setPopStars(false);
+  }
+
+  const questions = quiz.questions;
+  const total = questions?.length || 0;
+  const q = questions?.[qi];
+  const answered = answers[qi] !== undefined;
+  const rv = reveal[qi];
+
+  async function answer(i) {
+    if (!q || answered || !quiz.attemptId) return;
+    const step = qi;
+    const el = optsRef.current[i];
+    setAnswers((a) => {
+      const n = [...a];
+      n[step] = i;
+      return n;
     });
-    if (i === q.ans) {
-      const el = optsRef.current[i];
-      floatXP(rootRef.current, el, "+10 XP");
-      sparks(rootRef.current, el);
-      onXP(10);
+    try {
+      const d = await answerQuiz(quiz.attemptId, step, i);
+      setReveal((r) => ({ ...r, [step]: { correct: d.correct, correctIndex: d.correctIndex, exp: d.exp } }));
+      setProblem("");
+      if (d.correct) {
+        floatXP(rootRef.current, el, "+10 XP");
+        sparks(rootRef.current, el);
+        onXP(10);
+      }
+    } catch (err) {
+      setAnswers((a) => {
+        const n = [...a];
+        delete n[step];
+        return n;
+      });
+      setProblem(err.message || "Could not save your answer. Please try again.");
     }
   }
 
-  function next() {
+  async function next() {
     if (qi < total - 1) {
       setQi(qi + 1);
       return;
     }
-    setDone(true);
-    onFinish({ score, stars, correct: correctCount, total });
-    setTimeout(() => setPopStars(true), 600);
-    if (stars >= 2) setTimeout(() => confetti(canvasRef.current), 1500);
-  }
-
-  function retry() {
-    setQi(0);
-    setAnswers([]);
-    setHintOpen({});
-    setDone(false);
-    setPopStars(false);
+    setFinishing(true);
+    try {
+      const r = await finishQuiz(quiz.attemptId);
+      setResult(r);
+      onFinish(r);
+      setTimeout(() => setPopStars(true), 600);
+      if ((r.stars || 0) >= 2) setTimeout(() => confetti(canvasRef.current), 1500);
+    } catch (err) {
+      setProblem(err.message || "Could not grade the quiz. Please try again.");
+    }
+    setFinishing(false);
   }
 
   // keyboard: A, B, C, D to answer, Enter for next
   useEffect(() => {
     const onKey = (e) => {
       const tag = document.activeElement?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || done || !quiz) return;
+      if (tag === "INPUT" || tag === "TEXTAREA" || result || !questions) return;
+      if (document.activeElement?.closest?.(".cm-editor")) return;
       const k = "abcd".indexOf(e.key.toLowerCase());
-      if (k >= 0 && k < (quiz[qi]?.opts.length || 0)) optsRef.current[k]?.click();
-      if (e.key === "Enter" && answers[qi] !== undefined) next();
+      if (k >= 0 && k < (questions[qi]?.opts.length || 0)) optsRef.current[k]?.click();
+      if (e.key === "Enter" && reveal[qi] && !finishing) next();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  if (!quiz) {
+  if (quiz.loading || quiz.error || !questions) {
     return (
       <article className="card">
-        {error ? (
-          <div className="errbox"><b>Could not load the MCQs.</b> {error} <button type="button" className="btn gh sm" onClick={onReload}>Try again</button></div>
+        {quiz.error ? (
+          <div className="errbox"><b>Could not load the MCQs.</b> {quiz.error} <button type="button" className="btn gh sm" onClick={restart}>Try again</button></div>
         ) : (
-          <><Dots label="Writing 10 questions about this lesson…" /><div className="skel" style={{ height: 160, marginTop: 12 }} /></>
+          <><Dots label="Writing 10 questions about this level…" /><div className="skel" style={{ height: 160, marginTop: 12 }} /></>
         )}
       </article>
     );
   }
 
-  if (done) {
+  if (result) {
+    const stars = result.stars || 0;
     return (
       <article className="card res" style={{ animation: "vin .6s cubic-bezier(.3,1.4,.5,1)" }}>
-        <ResultRing pct={score} />
+        <ResultRing pct={result.score || 0} />
         <div className="rstars">
           {[0, 1, 2].map((s) => (
             <svg key={s} viewBox="0 0 24 24" className={`${s < stars ? "on" : ""}${popStars ? " p" : ""}`} style={{ animationDelay: `${s * 0.3}s` }} aria-hidden="true">
@@ -126,19 +197,20 @@ export default function QuizTab({ ctx, langFence, quiz, error, onReload, rootRef
         </div>
         <h2>{stars === 3 ? `Excellent, ${username}!` : stars > 0 ? `Great job, ${username}!` : `Keep going, ${username}!`}</h2>
         <p>
-          {correctCount} of {total} correct.{" "}
-          {stars === 3 ? "You earned all 3 stars for this level." : stars > 0 ? "Score 85% or more to earn all 3 stars." : "Score 50% or more to pass. Review the lesson and try again."}
+          {result.correct} of {result.total} correct.{" "}
+          {stars === 3 ? "You earned all 3 stars for this level." : stars > 0 ? "Score 85% or more to earn all 3 stars." : "Score 50% or more to pass. Review the lesson and try a new quiz."}
         </p>
         <div className="rstats">
-          <div><small>Correct</small>{correctCount} / {total}</div>
-          <div><small>XP earned</small>+{correctCount * 10}</div>
+          <div><small>Correct</small>{result.correct} / {result.total}</div>
+          <div><small>XP earned</small>+{result.correct * 10}</div>
           <div><small>Hints used</small>{hintsUsed}</div>
         </div>
         {stars > 0 && !isLastLevel && (
           <div className={`unlock${popStars ? " show" : ""}`}><Icon name="lock" />Level {ctx.levelIndex + 2} is now open!</div>
         )}
+        <Report report={result.report} />
         <div className="btns">
-          <button type="button" className="btn gh" onClick={retry}>{stars === 3 ? "Retry" : "Retry for more ★"}</button>
+          <button type="button" className="btn gh" onClick={restart}><Icon name="refresh" />New quiz</button>
           <button type="button" className="btn gh" onClick={onReview}>Review lesson</button>
           {stars > 0 && !isLastLevel && <button type="button" className="btn" onClick={onNextLevel}>Next level <span>→</span></button>}
         </div>
@@ -151,18 +223,23 @@ export default function QuizTab({ ctx, langFence, quiz, error, onReload, rootRef
       <div className="qtop">
         <h3><span className="ic"><Icon name="check" /></span>Question {qi + 1} of {total}</h3>
         <div className="qdots">
-          {quiz.map((qq, i) => (
-            <i key={i} className={i < qi || (i === qi && answered) ? (answers[i] === qq.ans ? "r" : "w") : i === qi ? "c" : ""} />
+          {questions.map((_, i) => (
+            <i key={i} className={reveal[i] ? (reveal[i].correct ? "r" : "w") : i === qi ? "c" : ""} />
           ))}
         </div>
       </div>
       <div key={qi} style={{ animation: "vin .45s cubic-bezier(.3,1.3,.5,1)" }}>
-        <div className={`qq${ur ? " ur-text" : ""}`}><InlineMd text={q.q} /></div>
+        <div className="qmeta">
+          {QUESTION_TYPE[q.type] && <span className={`qt ${q.type}`}>{QUESTION_TYPE[q.type]}</span>}
+          {q.topic && <span className="qtopic">{q.topic}</span>}
+        </div>
+        <div className="qq" dir="auto">{q.q}</div>
         {q.code && <div className="qcode"><CodeBlock code={q.code} lang={langFence} file={null} /></div>}
         <div className="opts">
           {q.opts.map((o, i) => {
             let cls = "opt";
-            if (answered) cls += i === q.ans ? " right" : i === answers[qi] ? " wrong" : " dim";
+            if (answered && !rv) cls += i === answers[qi] ? " picked" : " dim";
+            else if (rv) cls += i === rv.correctIndex ? " right" : i === answers[qi] ? " wrong" : " dim";
             return (
               <button key={i} type="button" ref={(el) => { optsRef.current[i] = el; }} className={cls} disabled={answered} onClick={() => answer(i)}>
                 <span className="lt">{"ABCD"[i]}</span><code>{String(o)}</code>
@@ -171,19 +248,25 @@ export default function QuizTab({ ctx, langFence, quiz, error, onReload, rootRef
           })}
         </div>
       </div>
-      {answered && (
-        <div className={`fb show ${answers[qi] === q.ans ? "r" : "w"}`}>
-          <b>{answers[qi] === q.ans ? "Correct!" : "Not quite."}</b> <InlineMd text={q.exp} />
+      {rv && (
+        <div className={`fb show ${rv.correct ? "r" : "w"}`}>
+          <b>{rv.correct ? "Correct!" : "Not quite."}</b> {rv.exp}
         </div>
       )}
-      {hintOpen[qi] && !answered && <div className="hintbox show"><b>Hint:</b> <InlineMd text={q.hint || "Read the question slowly and think about each option."} /></div>}
+      {problem && <div className="errbox">{problem}</div>}
+      {!answered && (
+        <div style={{ marginTop: 14 }}>
+          <HintSteps key={`${quiz.attemptId}-${qi}`} lang={langFence} onUsed={onHint} fetchHint={(step) => askHint(ctx, step, { type: "quiz", attemptId: quiz.attemptId, index: qi })} />
+        </div>
+      )}
       <div className="qfoot">
-        <button type="button" className="btn gh sm" disabled={answered || hintOpen[qi]} onClick={() => { setHintOpen((m) => ({ ...m, [qi]: true })); onHint(); }}><Icon name="bulb" />Hint</button>
         <span className="kk">Tip: press A, B, C or D</span>
-        {answered && <button type="button" className="btn" onClick={next}>{qi === total - 1 ? "See my result" : "Next"} <span>→</span></button>}
+        {rv && (
+          <button type="button" className="btn" style={{ marginLeft: "auto" }} onClick={next} disabled={finishing}>
+            {finishing ? "Grading…" : qi === total - 1 ? "See my result" : "Next"} <span>→</span>
+          </button>
+        )}
       </div>
-      <button type="button" className="btn gh sm" style={{ marginTop: 10, display: qi === 0 && !answered ? "inline-flex" : "none" }} onClick={onReload}><Icon name="refresh" />New questions</button>
     </article>
   );
 }
-

@@ -41,6 +41,26 @@ export const TRACKS = {
 
 // Short tips the AI mentor card shows before the student asks anything.
 export const TIPS = {
+  general: [
+    "Read the error message from the bottom up: the last line usually says what went wrong.",
+    "Run your code after every small change. Small steps make bugs easy to find.",
+    "Stuck? Explain your code line by line to the AI tutor. You often find the bug yourself.",
+  ],
+  java: [
+    "Your class must be called Main, and every statement ends with a semicolon ;",
+    "Use == for numbers but .equals() to compare two Strings.",
+    "System.out.println() prints and moves to a new line; print() stays on the same line.",
+  ],
+  javascript: [
+    "Use === instead of == so JavaScript does not change types behind your back.",
+    "let can change, const cannot. Start with const and switch to let only when needed.",
+    "console.log() is your best friend for seeing what a variable holds.",
+  ],
+  react: [
+    "A component is just a function that returns JSX. Its name must start with a capital letter.",
+    "Never change state directly. Always use the setter from useState.",
+    "Each item in a list needs a unique key prop.",
+  ],
   python: [
     "= stores a value, == compares two values. Mixing them up is the most common bug.",
     "Indentation is part of Python. Keep 4 spaces inside every if, for and def.",

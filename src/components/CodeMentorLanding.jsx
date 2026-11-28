@@ -360,7 +360,7 @@ export default function CodeMentorLanding({ onLogin, onRegister }) {
                 <p className="cmxa-sub">Your levels, stars and mentor chats are waiting for you.</p>
 
                 <div className={`cmxa-field ${getInputStatus(loginValidation.username)}`}>
-                  <input ref={loginUsernameRef} type="text" name="username" placeholder="Username" autoComplete="username"
+                  <input ref={loginUsernameRef} type="text" name="username" placeholder="Username or email" autoComplete="username"
                     value={loginData.username} onChange={handleLoginChange} aria-label="Username" />
                   <svg className="ico" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></svg>
                   <svg className="ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>

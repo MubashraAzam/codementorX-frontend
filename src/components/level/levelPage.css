@@ -485,6 +485,69 @@
 .cmxl .msg .code pre{font-size:12.5px;padding:10px 0}
 .cmxl .msg ul,.cmxl .msg ol{margin:6px 0 0;padding-left:18px;list-style:disc}
 
+
+/* ---------------- connected to the Module 1–4 backend ---------------- */
+/* CodeMirror (Module 4.1 editor) inside the new editor card */
+.cmxl .cm-wrap > div{border-radius:0 !important;border:0 !important;box-shadow:none !important}
+.cmxl .cm-wrap .cm-editor{background:var(--ed)}
+.cmxl .cm-wrap .cm-gutters{background:var(--ed);border-right:1px solid var(--edline)}
+.cmxl .cm-wrap .cm-content > .cm-line{transition:background .25s}
+.cmxl .btn.gh.dark{background:transparent;color:#D9D2F0;border-color:#3A2F55}
+.cmxl .preview{display:block;width:100%;height:300px;margin-top:4px;border:1px solid var(--line);border-radius:14px;background:#fff}
+
+/* full lesson: ### sub-sections */
+.cmxl .toc a.sub{padding-left:22px;font-size:12.5px}
+.cmxl .toc a.sub b{width:18px;height:18px;font-size:10px}
+.cmxl .art section.sub{padding-left:14px;border-left:3px solid var(--chip)}
+.cmxl .art section.sub h3{font-size:18px}
+
+/* hint ladder */
+.cmxl .hintsteps{display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.cmxl .hintsteps .hintbox{width:100%;margin-top:0}
+.cmxl .hintbox > b{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+.cmxl .hintbox p{margin:0}
+
+/* MCQs from the server */
+.cmxl .qmeta{display:flex;gap:6px;flex-wrap:wrap;margin-top:16px}
+.cmxl .qmeta span{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:5px 9px;border-radius:8px}
+.cmxl .qt.concept{background:rgba(110,139,245,.16);color:#5B6FD8}
+.cmxl .qt.output{background:var(--ok-bg);color:var(--ok)}
+.cmxl .qt.debug{background:var(--bad-bg);color:var(--bad)}
+.cmxl[data-theme="dark"] .qt.concept{color:#A9B8FF}
+.cmxl .qtopic{background:var(--inner);border:1px solid var(--line);color:var(--muted)}
+.cmxl .qq{margin-top:10px}
+.cmxl .opt.picked{border-color:var(--accent2);box-shadow:0 0 0 4px var(--chip)}
+.cmxl .report{margin:22px 0 6px;padding:18px;border-radius:18px;background:var(--inner);border:1px solid var(--line);text-align:left}
+.cmxl .report h4{font-size:16px;font-weight:800;margin:0 0 10px}
+.cmxl .report .g2{gap:22px}
+.cmxl .report .kk{margin-bottom:8px}
+.cmxl .report .rq{margin-top:10px}
+.cmxl .report .rq .row{font-size:13.5px;font-weight:700}
+.cmxl .report .rq .row .rl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmxl .report .rq .row span:last-child{color:var(--muted);flex:none}
+.cmxl .report .mb{height:7px;border-radius:7px;background:var(--track);margin-top:6px;overflow:hidden}
+.cmxl .report .mb i{display:block;height:100%;border-radius:7px;background:var(--ok);transition:width 1s}
+.cmxl .report .mb i.mid{background:var(--warn)}
+.cmxl .report .mb i.low{background:var(--bad)}
+.cmxl .report .weak{margin-top:14px;font-size:14px}
+.cmxl .report .weak span{display:inline-block;margin:6px 6px 0 0;padding:5px 10px;border-radius:8px;background:var(--bad-bg);color:var(--bad);font-weight:800;font-size:12.5px}
+
+/* locked level */
+.cmxl .locked-card{margin-top:18px;text-align:center;padding:48px 22px}
+.cmxl .locked-card .lk{width:64px;height:64px;margin:0 auto;border-radius:20px;display:grid;place-items:center;background:var(--chip);color:var(--chip-text)}
+.cmxl .locked-card .lk svg{width:30px;height:30px}
+.cmxl .locked-card h2{margin-top:16px;font-size:26px;font-weight:800}
+.cmxl .locked-card p{margin:8px 0 20px;color:var(--muted);font-weight:600}
+
+/* chat */
+.cmxl .msg.err{background:var(--bad-bg);border-color:transparent}
+.cmxl .ur-mixed{font-family:'Plus Jakarta Sans','Noto Naskh Arabic',system-ui,sans-serif;line-height:1.85}
+.cmxl .qs button:disabled{opacity:.5;cursor:default;transform:none}
+.cmxl .ib:disabled{opacity:.55;cursor:default}
+.cmxl .task .md{margin-top:6px}
+.cmxl .task .md p{margin:6px 0 0;font-size:14.5px;line-height:1.6;color:var(--muted)}
+.cmxl .task .md ul,.cmxl .task .md ol{margin:6px 0 0;padding-left:18px;list-style:disc;color:var(--muted);font-size:14.5px}
+
 /* smaller screens */
 @media (max-width:1180px){
   .cmxl .layout{grid-template-columns:minmax(0,1fr)}

@@ -1,147 +1,144 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
+import CodeEditor from "../CodeEditor";
 import { askHint, askSolution } from "./levelAI";
-import { outputMatches, runCode } from "./runCode";
+import { outputMatches, runCode, errorLine } from "./runCode";
 import { sparks } from "./fx";
-import { CodeEditor, Dots, Icon, InlineMd, Md } from "./ui";
+import HintSteps from "./HintSteps";
+import { Dots, Icon, Md } from "./ui";
 
-const BLANK = {
-  python: "# Write your code here\n",
-  cpp: "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your code here\n    return 0;\n}\n",
-  java: "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        // Write your code here\n    }\n}\n",
-  javascript: "// Write your code here\n",
-};
-
-export default function ExercisesTab({ ctx, langFence, langName, exercises, error, onReload, solved, onSolved, rootRef, onNext }) {
+/**
+ * Exercises tab = Module 3.1 practice set (3 exercises from the server, cached per level)
+ * with the 3-step hint ladder (3.3), the worked solution on request, and
+ * "Code it with your AI partner" which opens the exercise in the Code tab (3.2).
+ */
+export default function ExercisesTab({ ctx, langFence, langName, practice, error, onReload, solved, onSolved, rootRef, onOpenInLab, onNext }) {
   const [active, setActive] = useState(0);
   const [codes, setCodes] = useState({});
-  const [results, setResults] = useState({}); // i -> { tests:[{pass, got}], output, error }
+  const [inputs, setInputs] = useState({});
+  const [results, setResults] = useState({}); // i -> { ok, stdout, stderr, match }
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState("");
-  const [help, setHelp] = useState({}); // i -> { hint, solution, loading }
-  const passRef = useRef(null);
+  const [solutions, setSolutions] = useState({}); // i -> { loading, text, error }
 
-  if (!exercises) {
+  if (!practice) {
     return (
       <div className="stack">
         <article className="card">
           {error ? (
             <div className="errbox"><b>Could not load the exercises.</b> {error} <button type="button" className="btn gh sm" onClick={onReload}>Try again</button></div>
           ) : (
-            <><Dots label="Creating 3 exercises for this level…" /><div className="skel" style={{ height: 90, marginTop: 12 }} /></>
+            <><Dots label="Preparing 3 practice exercises…" /><div className="skel" style={{ height: 90, marginTop: 12 }} /></>
           )}
         </article>
       </div>
     );
   }
 
-  const ex = exercises[active] || exercises[0];
-  const code = codes[active] ?? (ex.starter || BLANK[ctx.language] || BLANK.python);
+  const list = practice.exercises || [];
+  const ex = list[active] || list[0];
+  const code = codes[active] ?? ex.starterCode ?? "";
+  const stdin = inputs[active] ?? "";
   const res = results[active];
-  const h = help[active] || {};
-  const passedCount = res ? res.tests.filter((t) => t.pass).length : 0;
+  const sol = solutions[active] || {};
+  const isReact = ctx.language === "react";
 
-  async function runTests() {
-    if (busy) return;
+  async function runCheck() {
+    if (busy || !code.trim()) return;
     setBusy(true);
-    const tests = ex.tests.length ? ex.tests : [{ input: "", output: null }];
-    const out = [];
-    let lastOutput = "";
-    let lastError = null;
-    for (const t of tests) {
-      const r = await runCode({ language: ctx.language, code, stdin: String(t.input ?? ""), echo: false, onStatus: setStatus });
-      lastOutput = r.output;
-      lastError = r.error;
-      out.push({ pass: !r.error && t.output !== null && outputMatches(r.output, t.output), got: r.error ? r.error.text : r.output.trim() });
-      if (r.error && /took too long|not reachable/.test(r.error.text)) break;
-    }
-    setResults((m) => ({ ...m, [active]: { tests: out, output: lastOutput, error: lastError } }));
-    setStatus("");
+    const r = await runCode(ctx.language, code, stdin.replace(/\\n/g, "\n"));
+    const match = !isReact && r.ok && ex.expectedOutput ? outputMatches(r.stdout, ex.expectedOutput) : false;
+    setResults((m) => ({ ...m, [active]: { ...r, match } }));
     setBusy(false);
-    if (ex.tests.length && out.length === ex.tests.length && out.every((t) => t.pass)) {
-      requestAnimationFrame(() => sparks(rootRef.current, passRef.current));
+    if (match) {
+      requestAnimationFrame(() => sparks(rootRef.current, document.querySelector(".cmxl .result.show")));
       onSolved(active);
     }
   }
 
-  async function getHelp(kind) {
-    if (kind === "hint" && ex.hint && !h.hint) {
-      setHelp((m) => ({ ...m, [active]: { ...m[active], hint: ex.hint } }));
-      return;
-    }
-    setHelp((m) => ({ ...m, [active]: { ...m[active], loading: kind } }));
+  async function showSolution() {
+    setSolutions((m) => ({ ...m, [active]: { loading: true } }));
     try {
-      const text = kind === "hint"
-        ? await askHint(ctx, `Exercise: ${ex.title}. ${ex.task} The student's code so far:\n${code}`)
-        : await askSolution(ctx, ex);
-      setHelp((m) => ({ ...m, [active]: { ...m[active], loading: null, [kind]: text } }));
-    } catch {
-      setHelp((m) => ({ ...m, [active]: { ...m[active], loading: null, [kind]: "The AI is busy. Please try again." } }));
+      const text = await askSolution(ctx, practice.practiceId, active);
+      setSolutions((m) => ({ ...m, [active]: { text } }));
+    } catch (err) {
+      setSolutions((m) => ({ ...m, [active]: { error: err.message || "Could not load the solution." } }));
     }
   }
-
-  const allPassed = res && ex.tests.length && res.tests.length === ex.tests.length && res.tests.every((t) => t.pass);
 
   return (
     <div className="stack">
       <article className="card">
-        <div className="row"><h3><span className="ic"><Icon name="pen" /></span>Exercises</h3><span className="kk">Solve it, run it, pass the tests</span></div>
+        <div className="row"><h3><span className="ic"><Icon name="pen" /></span>Exercises</h3><span className="kk">Write it, run it, match the expected output</span></div>
         <div className="exs">
-          {exercises.map((x, i) => (
+          {list.map((x, i) => (
             <button key={i} type="button" className={`ex${i === active ? " on" : ""}${solved.includes(i) ? " ok" : ""}`} onClick={() => setActive(i)}>
               <span className="st">{solved.includes(i) ? "✓" : i + 1}</span>
-              <span>{x.title}<small>{x.tags}</small></span>
+              <span>{x.title}<small>{["Easy", "Medium", "Challenging"][i] || ""}</small></span>
             </button>
           ))}
         </div>
-        <div className="task">
-          <p><b>Exercise {active + 1} · {ex.title}.</b> <InlineMd text={ex.task} /></p>
-          {ex.tests.length > 0 && (
-            <div className="exp">{ex.tests.map((t, i) => <span key={i}>{String(t.input).replace(/\n/g, " · ") || "(no input)"} → {String(t.output)}</span>)}</div>
+        <div className={`task${ctx.uiLang === "ur" ? " ur-mixed" : ""}`}>
+          <p><b>Exercise {active + 1} · {ex.title}</b></p>
+          <Md className="md" text={ex.description} lang={langFence} />
+          {ex.expectedOutput && (
+            <>
+              <div className="kk" style={{ marginTop: 10 }}>Expected output</div>
+              <div className="console" style={{ minHeight: 0, marginTop: 6 }}><span className="o">{ex.expectedOutput}</span></div>
+            </>
           )}
         </div>
       </article>
 
       <div className="g2b">
         <div className="code editor">
-          <div className="chead"><i /><i /><i /><span className="fn">exercise{active + 1}.{langFence === "cpp" ? "cpp" : langFence === "java" ? "java" : langFence === "javascript" ? "js" : "py"}</span><span className="lg">{langName}</span></div>
-          <CodeEditor value={code} onChange={(v) => setCodes((m) => ({ ...m, [active]: v }))} lang={langFence} errLine={res?.error?.line || undefined} minHeight={280} />
+          <div className="chead"><i /><i /><i /><span className="fn">exercise{active + 1}</span><span className="lg">{langName}</span></div>
+          <div className="cm-wrap">
+            <CodeEditor key={`${practice.practiceId}-${active}`} value={code} onChange={(v) => setCodes((m) => ({ ...m, [active]: v }))} language={ctx.language} height="300px" ariaLabel={`Exercise ${active + 1} editor`} />
+            {res && !res.ok && errorLine(res.stderr) && (
+              <style>{`.cmxl .cm-wrap .cm-content > .cm-line:nth-child(${errorLine(res.stderr)}){background:rgba(255,122,133,.18);box-shadow:inset 3px 0 0 #FF7A85}`}</style>
+            )}
+          </div>
           <div className="edbar">
-            <button type="button" className="btn run sm" onClick={runTests} disabled={busy}><Icon name="play" />{busy ? "Testing…" : "Run & test"}</button>
-            <button type="button" className="btn gh sm" style={{ background: "transparent", color: "#D9D2F0", borderColor: "#3A2F55" }} onClick={() => setCodes((m) => ({ ...m, [active]: ex.starter || BLANK[ctx.language] || BLANK.python }))}>Reset</button>
-            <span className="status">{status || `${ex.tests.length} tests`}</span>
+            <button type="button" className="btn run sm" onClick={runCheck} disabled={busy || !code.trim()}><Icon name="play" />{busy ? "Running…" : isReact ? "Preview" : "Run & check"}</button>
+            <button type="button" className="btn gh sm dark" onClick={() => setCodes((m) => ({ ...m, [active]: ex.starterCode || "" }))}>Reset</button>
+            <button type="button" className="btn gh sm dark" onClick={() => onOpenInLab(ex, code)}>Code it with AI partner</button>
           </div>
         </div>
 
         <article className="card">
-          <div className="row"><h3>Tests</h3><span className="kk">{passedCount} / {ex.tests.length} passed</span></div>
-          <div className="tests">
-            {ex.tests.map((t, i) => {
-              const r = res?.tests[i];
-              return (
-                <div key={i} className={`tst${r?.pass ? " pass" : r ? " fail" : ""}`}>
-                  <span className="b">{r?.pass ? "✓" : r ? "✗" : i + 1}</span>
-                  <span>
-                    input: {String(t.input).replace(/\n/g, " · ") || "—"}
-                    {r && !r.pass && <small>got: {cutText(r.got)}</small>}
-                  </span>
-                  <code>{String(t.output)}</code>
-                </div>
-              );
-            })}
+          {!isReact && (
+            <>
+              <div className="minihead"><span className="kk">Input</span><span className="kk" style={{ color: "var(--accent)" }}>if your program reads values</span></div>
+              <div className="inrow">
+                <input value={stdin} onChange={(e) => setInputs((m) => ({ ...m, [active]: e.target.value }))} placeholder="e.g. 85  (use \n between values)" aria-label="Program input" />
+              </div>
+            </>
+          )}
+          <div className="minihead"><span className="kk">{isReact ? "Live preview" : "Your output"}</span></div>
+          {res?.preview ? (
+            <iframe title="React preview" sandbox="allow-scripts" srcDoc={res.preview} className="preview" />
+          ) : (
+            <div className="console" style={{ minHeight: 80 }}>
+              {!res && <span className="p">Run your code to see the output…</span>}
+              {res && <span className="o">{res.stdout || (res.stderr ? "" : "(no output)")}</span>}
+              {res?.stderr && <span className="e">{`${res.stdout ? "\n" : ""}${res.stderr}`}</span>}
+            </div>
+          )}
+          <div className={`result${res?.match ? " show" : ""}`}><Icon name="tick" />Your output matches the expected output!<span className="xp">+20 XP</span></div>
+          {res && res.ok && !res.match && ex.expectedOutput && !isReact && (
+            <div className="hintbox show">Not the same as the expected output yet. Check your input and the exact words, spaces and numbers.</div>
+          )}
+          <div className="minihead"><span className="kk">Need help?</span></div>
+          <HintSteps
+            key={`${practice.practiceId}-${active}`}
+            lang={langFence}
+            fetchHint={(step) => askHint(ctx, step, { type: "practice", practiceId: practice.practiceId, index: active, code })}
+          />
+          <div className="btns" style={{ marginTop: 10 }}>
+            <button type="button" className="btn gh sm" onClick={showSolution} disabled={sol.loading || !!sol.text}>Show solution</button>
           </div>
-          <div className="console" style={{ minHeight: 80 }}>
-            {!res && <span className="p">Output shows here…</span>}
-            {res && <span className="o">{res.output || "(no output)"}</span>}
-            {res?.error && <span className="e">{`\n${res.error.line ? `Line ${res.error.line}: ` : ""}${res.error.text}`}</span>}
-          </div>
-          <div className={`result${allPassed ? " show" : ""}`} ref={passRef}><Icon name="tick" />All tests passed!<span className="xp">+20 XP</span></div>
-          <div className="btns" style={{ marginTop: 12 }}>
-            <button type="button" className="btn gh sm" onClick={() => getHelp("hint")} disabled={!!h.loading}><Icon name="bulb" />Hint</button>
-            <button type="button" className="btn gh sm" onClick={() => getHelp("solution")} disabled={!!h.loading}>Solution</button>
-          </div>
-          {h.loading && <Dots label={h.loading === "hint" ? "Thinking of a hint…" : "Writing the solution…"} />}
-          {h.hint && !h.loading && <div className="hintbox show"><b>Hint:</b> <InlineMd text={h.hint} /></div>}
-          {h.solution && <div className="aibox solbox"><small>SOLUTION</small><Md text={h.solution} lang={langFence} /></div>}
+          {sol.loading && <Dots label="Writing the solution…" />}
+          {sol.error && <div className="errbox">{sol.error}</div>}
+          {sol.text && <div className="aibox solbox"><small>SOLUTION</small><Md text={sol.text} lang={langFence} /></div>}
         </article>
       </div>
       <div className="btns">
@@ -150,9 +147,4 @@ export default function ExercisesTab({ ctx, langFence, langName, exercises, erro
       </div>
     </div>
   );
-}
-
-function cutText(s) {
-  const t = String(s || "").replace(/\s+/g, " ");
-  return t.length > 60 ? `${t.slice(0, 57)}…` : t || "(nothing)";
 }

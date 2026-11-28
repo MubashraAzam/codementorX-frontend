@@ -150,6 +150,16 @@
 .cmxd .dz-flame { animation: dzFlick 1.4s ease-in-out infinite; transform-origin: center bottom; }
 @keyframes dzFlick { 50% { transform: scale(1.12) rotate(-4deg); } }
 
+/* ---------- email verification (Module 1.1) ---------- */
+.cmxd .dz-verify { display: flex; align-items: center; gap: 14px; margin-top: 16px; padding: 14px 16px; border-radius: 20px; background: var(--card); border: 1.5px solid var(--accent3); box-shadow: var(--shadow); }
+.cmxd .dz-vi { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--chip); color: var(--chip-text); flex: none; }
+.cmxd .dz-vi svg { width: 20px; height: 20px; }
+.cmxd .dz-verify b { display: block; font-size: 15px; }
+.cmxd .dz-verify small { display: block; font-size: 13px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+.cmxd .dz-vbtn { margin-left: auto; flex: none; height: 40px; padding: 0 16px; border-radius: 999px; border: 0; background: var(--btn); color: var(--on-btn); font-weight: 800; font-size: 13.5px; }
+.cmxd .dz-vbtn:disabled { opacity: .6; cursor: wait; }
+@media (max-width: 640px) { .cmxd .dz-verify { flex-wrap: wrap; } .cmxd .dz-vbtn { margin-left: 0; } }
+
 /* ---------- cards ---------- */
 .cmxd .dz-grid { display: grid; gap: 18px; margin-top: 18px; }
 .cmxd .dz-g1 { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); }

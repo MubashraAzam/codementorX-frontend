@@ -125,30 +125,37 @@ export function renderMarkdown(md, defaultLang = "python") {
   return html;
 }
 
-// Splits the AI lesson into sections at "## " headings (for the contents list).
+// Splits the AI lesson into sections for the contents list.
+// "## " headings are sections; when the lesson has only a few of them,
+// "### " sub-headings (for example each key concept) become sections too.
 export function splitSections(md) {
   if (!md) return [];
   const lines = md.replace(/\r/g, "").split("\n");
-  const level = lines.some((l) => /^##\s/.test(l)) ? /^##\s+(.*)/ : /^#\s+(.*)/;
+  let inFence = false;
+  const h2 = lines.filter((l) => {
+    if (/^\s*```/.test(l)) inFence = !inFence;
+    return !inFence && /^##\s/.test(l);
+  }).length;
+  const heading = h2 >= 5 ? /^(##)\s+(.*)/ : h2 > 0 ? /^(###?)\s+(.*)/ : /^(#{1,3})\s+(.*)/;
   const out = [];
   let cur = null;
-  let inFence = false;
+  inFence = false;
   for (const l of lines) {
     if (/^\s*```/.test(l)) inFence = !inFence;
-    const m = !inFence && l.match(level);
+    const m = !inFence && l.match(heading);
     if (m) {
-      cur = { title: m[1].replace(/[*#`]/g, "").trim(), body: [] };
+      cur = { title: m[2].replace(/[*#`]/g, "").trim(), sub: m[1] === "###", body: [] };
       out.push(cur);
     } else {
       if (!cur) {
         if (!l.trim() || /^#\s/.test(l)) continue;
-        cur = { title: "Introduction", body: [] };
+        cur = { title: "Introduction", sub: false, body: [] };
         out.push(cur);
       }
       cur.body.push(l);
     }
   }
-  return out.map((s) => ({ title: s.title, body: s.body.join("\n").trim() })).filter((s) => s.body || s.title);
+  return out.map((s) => ({ title: s.title, sub: s.sub, body: s.body.join("\n").trim() })).filter((s) => s.body || s.title);
 }
 
 export function plainText(md) {

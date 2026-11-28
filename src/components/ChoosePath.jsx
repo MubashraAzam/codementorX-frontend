@@ -10,7 +10,8 @@ import "./choose/choosePath.css";
  *
  * Props (all optional except onSelectPath):
  *   username      string    shown in the top bar
- *   onSelectPath  fn(id, data)  called after the choice is saved ("python" | "cpp" | "java" | "javascript" | "react")
+ *   onSelectPath  fn(user)  called after the choice is saved, with the updated user from
+ *                           POST /api/courses/enroll (Module 1.3). App.jsx applies it and opens the dashboard.
  *   enrollments   string[]  tracks the student already has. If not passed, the page reads them
  *                           from GET /api/auth/me. Enrolled cards show a badge and "Continue ...".
  *   onBack        fn        "← Dashboard" button. If not passed, the button appears by itself
@@ -322,7 +323,9 @@ export default function ChoosePath({ username = "Student", onSelectPath, enrollm
       setToast(`Welcome to the ${lang.name} track! Level 1 is open.`);
       burst();
       later(() => setToast(""), 2600);
-      later(() => onSelectPath && onSelectPath(lang.id, data), 1500);
+      // App.jsx expects the updated user ({ language, enrollments, ... }) from the server.
+      const user = data && typeof data === "object" && data.language ? data : { ...(data || {}), language: lang.id };
+      later(() => onSelectPath && onSelectPath(user), 1500);
     } catch (err) {
       setError(err?.message || "Could not save your choice. Please try again.");
     } finally {
@@ -332,6 +335,15 @@ export default function ChoosePath({ username = "Student", onSelectPath, enrollm
 
   const lang = LANGS.find((l) => l.id === current);
   const isEnrolled = (id) => enrollments.includes(id);
+
+  // "/choose-path?track=java" (from the AI Roadmap page) opens that card once the deck is dealt
+  useEffect(() => {
+    const preset = new URLSearchParams(window.location.search).get("track");
+    if (!LANGS.some((l) => l.id === preset)) return undefined;
+    const t = setTimeout(() => pick(preset), 500 + LANGS.length * 160 + 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div ref={rootRef} className={`cmxc${mode === "detail" ? " is-detail" : ""}${narrow ? " narrow" : ""}`} data-theme={theme}>
