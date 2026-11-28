@@ -662,7 +662,7 @@ export default function PinkDashboard({
       <div className="dz-app">
         {/* ---------------- SIDEBAR ---------------- */}
         <aside className="dz-side">
-          <div className="dz-brand"><i>&gt;_</i><b>CodeMentor<span>-X</span></b></div>
+          <div className="dz-brand"><i>&gt;_</i><b>CodeMentor<span></span></b></div>
 
           <nav className="dz-nav" ref={navRef} aria-label="Dashboard">
             <span className="dz-ind" ref={indRef} />
