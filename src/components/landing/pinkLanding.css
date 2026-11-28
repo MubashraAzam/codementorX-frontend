@@ -55,7 +55,7 @@
 /* ---------- nav ---------- */
 .cmxp .cmxp-header { position: sticky; top: 14px; z-index: 30; padding: 0 28px; }
 .cmxp .nav { max-width: 1240px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 10px 12px 10px 14px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: var(--shadow); transition: background .6s, border-color .6s; }
-.cmxp .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 19px; letter-spacing: -.02em; background: none; border: 0; color: var(--text); padding: 0; }
+.cmxp .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 19px; letter-spacing: -.02em; white-space: nowrap; background: none; border: 0; color: var(--text); padding: 0; }
 .cmxp .brand .logo { width: 38px; height: 38px; border-radius: 11px; overflow: hidden; display: block; background: #0d1b2e; }
 .cmxp .brand .logo img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.2); }
 .cmxp .brand span { color: var(--accent); }
@@ -129,13 +129,13 @@
 @keyframes cmxpSlide { to { transform: translateX(-50%); } }
 
 /* ---------- sections ---------- */
-.cmxp section.block { padding: 120px 0 20px; }
+.cmxp section.block { padding-top: 120px; padding-bottom: 20px; } /* top/bottom only, so .wrap keeps its side padding */
 .cmxp .eyebrow { font-weight: 800; font-size: 12.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
 .cmxp h2 { font-size: 56px; line-height: 1.05; font-weight: 800; letter-spacing: -.04em; margin: 14px 0 0; }
 .cmxp .sub { font-size: 18px; line-height: 1.65; color: var(--muted); margin: 16px 0 0; max-width: 560px; }
 
 /* ---------- roadmap ---------- */
-.cmxp .road { display: grid; grid-template-columns: .9fr 1.1fr; gap: 56px; align-items: center; }
+.cmxp .road { display: grid; grid-template-columns: minmax(0,.9fr) minmax(0,1.1fr); gap: 56px; align-items: center; }
 .cmxp .tabs { display: flex; gap: 8px; margin-top: 30px; flex-wrap: wrap; }
 .cmxp .tab { position: relative; overflow: hidden; padding: 10px 18px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-weight: 700; font-size: 14.5px; transition: color .3s, background .3s; }
 .cmxp .tab.on { background: var(--btn); color: var(--btn-text); border-color: transparent; }
@@ -145,7 +145,7 @@
 .cmxp .stats b { display: block; font-size: 34px; font-weight: 800; letter-spacing: -.03em; }
 .cmxp .stats span { font-size: 13.5px; color: var(--muted); font-weight: 600; }
 .cmxp .rcard { position: relative; border-radius: 28px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); padding: 26px; backdrop-filter: blur(12px); transition: background .6s; }
-.cmxp .rhead { display: flex; justify-content: space-between; align-items: center; }
+.cmxp .rhead { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .cmxp .rhead .mono { font-size: 13px; color: var(--muted); }
 .cmxp .pbar { height: 8px; border-radius: 8px; background: var(--chip); margin: 14px 0 18px; overflow: hidden; }
 .cmxp .pbar i { display: block; height: 100%; border-radius: 8px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 1.4s cubic-bezier(.2,.8,.2,1); }
@@ -153,7 +153,7 @@
 .cmxp .row { display: flex; align-items: center; gap: 16px; padding: 15px 18px; border-radius: 18px; background: var(--surface-solid); border: 1px solid var(--line); transform: translateX(40px); opacity: 0; transition: transform .6s cubic-bezier(.3,1.4,.5,1), opacity .5s, background .6s; }
 .cmxp .row.show { transform: none; opacity: 1; }
 .cmxp .row .n { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; color: var(--soft); width: 24px; }
-.cmxp .row .t { flex: 1; font-weight: 700; font-size: 17px; }
+.cmxp .row .t { flex: 1; min-width: 0; font-weight: 700; font-size: 17px; }
 .cmxp .row.locked .t { color: var(--locked); }
 .cmxp .row.cur { border-color: var(--accent2); box-shadow: 0 0 0 3px var(--chip); }
 .cmxp .stars { display: flex; gap: 3px; }
@@ -174,17 +174,17 @@
 .cmxp .seg.done { background: var(--accent); }
 .cmxp .trophy { flex: none; width: 34px; height: 34px; border-radius: 12px; display: grid; place-items: center; background: var(--btn); margin-left: 8px; }
 .cmxp .trophy svg { width: 18px; height: 18px; stroke: var(--btn-text); fill: none; stroke-width: 2.2; }
-.cmxp .pathlbl { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); font-weight: 700; margin-top: 10px; }
+.cmxp .pathlbl { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); font-weight: 700; margin-top: 10px; }
 
 /* ---------- live code ---------- */
-.cmxp .live { display: grid; grid-template-columns: 1.1fr .9fr; gap: 28px; margin-top: 48px; }
+.cmxp .live { display: grid; grid-template-columns: minmax(0,1.1fr) minmax(0,.9fr); gap: 28px; margin-top: 48px; }
 .cmxp .editor { border-radius: 24px; background: var(--code-bg); border: 1px solid var(--line); box-shadow: var(--shadow); overflow: hidden; transition: background .6s; }
 .cmxp .ebar { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--line); }
 .cmxp .dots3 { display: flex; gap: 7px; }
 .cmxp .dots3 i { width: 12px; height: 12px; border-radius: 50%; }
 .cmxp .ebar .mono { font-size: 13px; color: var(--muted); }
 .cmxp .run { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 600; padding: 7px 12px; border-radius: 9px; background: var(--btn); color: var(--btn-text); border: 0; }
-.cmxp pre.code { margin: 0; padding: 22px 24px; font-family: 'JetBrains Mono', monospace; font-size: 15.5px; line-height: 1.85; color: var(--code-text); min-height: 230px; white-space: pre; background: none; }
+.cmxp pre.code { margin: 0; overflow-x: auto; padding: 22px 24px; font-family: 'JetBrains Mono', monospace; font-size: 15.5px; line-height: 1.85; color: var(--code-text); min-height: 230px; white-space: pre; background: none; }
 .cmxp .k { color: var(--code-key); } .cmxp .s { color: var(--code-str); } .cmxp .c { color: var(--code-com); } .cmxp .f { color: var(--code-fn); }
 .cmxp .caret { display: inline-block; width: 9px; height: 19px; background: var(--accent); vertical-align: -4px; animation: cmxpBlink 1s steps(1) infinite; }
 @keyframes cmxpBlink { 50% { opacity: 0; } }
@@ -253,14 +253,54 @@
 /* ---------- tablets and phones ---------- */
 @media (max-width: 1080px) {
   .cmxp .links { display: none; }
-  .cmxp .hero { grid-template-columns: 1fr; min-height: 0; padding-top: 50px; }
+  .cmxp .hero { min-height: 0; padding-top: 50px; }
   .cmxp .scene { height: 460px; margin-right: 0; }
-  .cmxp .road, .cmxp .live { grid-template-columns: 1fr; }
+  .cmxp .road, .cmxp .live { grid-template-columns: minmax(0,1fr); }
+  .cmxp .hero { grid-template-columns: minmax(0,1fr); }
+  .cmxp .scene { max-width: 620px; width: 100%; margin: 0 auto; }
+  .cmxp section.block { padding-top: 90px; }
+  .cmxp h2 { font-size: 46px; }
+  .cmxp .ctab h2 { font-size: 46px; }
+  .cmxp .ctab { margin-top: 90px; }
   .cmxp .fgrid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .cmxp .lgrid { grid-template-columns: repeat(3, minmax(0,1fr)); }
 }
 @media (max-width: 640px) {
   .cmxp .wrap { padding: 0 16px; }
+  .cmxp section.block { padding-top: 70px; }
+  .cmxp .nav { gap: 10px; padding: 8px 8px 8px 10px; }
+  .cmxp .brand { font-size: 16px; gap: 8px; }
+  .cmxp .brand .logo { width: 34px; height: 34px; }
+  .cmxp .navr { gap: 8px; }
+  .cmxp .toggle { width: 56px; }
+  .cmxp[data-theme="dark"] .toggle i { transform: translateX(22px); }
+  .cmxp .navr .btn.pri { padding: 10px 14px; font-size: 14px; white-space: nowrap; }
+  .cmxp .hero { padding-top: 34px; gap: 10px; }
+  .cmxp .lead { font-size: 16.5px; }
+  .cmxp .trust { gap: 18px 24px; }
+  .cmxp .trust b { font-size: 26px; }
+  .cmxp .stats { gap: 16px 22px; }
+  .cmxp .stats b { font-size: 28px; }
+  .cmxp .sub { font-size: 16px; }
+  .cmxp .rcard { padding: 18px 14px; border-radius: 22px; }
+  .cmxp .rows { min-height: 0; }
+  .cmxp .row { gap: 10px; padding: 12px; }
+  .cmxp .row .t { font-size: 15px; }
+  .cmxp .stars svg { width: 14px; height: 14px; }
+  .cmxp .badge { font-size: 10px; padding: 5px 8px; }
+  .cmxp .node { width: 10px; height: 10px; border-width: 1.5px; }
+  .cmxp .node.cur { transform: scale(1.5); }
+  .cmxp .trophy { width: 28px; height: 28px; border-radius: 9px; margin-left: 6px; }
+  .cmxp pre.code { font-size: 13px; padding: 16px; min-height: 0; }
+  .cmxp .ebar { padding: 12px 14px; }
+  .cmxp .chat { padding: 16px; }
+  .cmxp .msg { font-size: 14px; max-width: 92%; }
+  .cmxp .feat { padding: 22px; }
+  .cmxp .step p { max-width: 300px; }
+  .cmxp .lgrid { grid-template-columns: repeat(2, minmax(0,1fr)) !important; gap: 12px; }
+  .cmxp .lang { padding: 18px 16px; border-radius: 20px; }
+  .cmxp .lang h3 { font-size: 18px; }
+  .cmxp .ltile { width: 46px; height: 46px; border-radius: 14px; font-size: 15px; }
   .cmxp .cmxp-header { padding: 0 10px; }
   .cmxp .navr .btn.ghost { display: none; }
   .cmxp h1 { font-size: 40px; }
@@ -268,10 +308,21 @@
   .cmxp .split .line { white-space: normal; }
   .cmxp .scene { height: 320px; }
   .cmxp .fcard { font-size: 13px; padding: 9px 12px; }
+  .cmxp .fc1 { right: 0; top: 10px; } .cmxp .fc2 { left: 0; bottom: 70px; } .cmxp .fc3 { right: 4px; bottom: 6px; }
   .cmxp .track span { font-size: 34px; }
-  .cmxp .fgrid, .cmxp .lgrid, .cmxp .steps { grid-template-columns: 1fr; }
+  .cmxp .fgrid, .cmxp .steps { grid-template-columns: minmax(0,1fr); }
   .cmxp .sline { display: none; }
-  .cmxp .ctab { padding: 50px 20px; }
+  .cmxp .ctab { padding: 50px 20px; margin-top: 70px; border-radius: 28px; }
+  .cmxp .ctab p { font-size: 16px; }
+  .cmxp .foot { flex-direction: column; }
+}
+/* small phones: logo only in the top bar so the buttons fit */
+@media (max-width: 420px) {
+  .cmxp .brand .bt { display: none; }
+  .cmxp h1 { font-size: 36px; }
+  .cmxp .fcard { font-size: 12px; padding: 7px 10px; gap: 7px; }
+  .cmxp .fcard .ic { width: 26px; height: 26px; }
+  .cmxp .scene { height: 290px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .cmxp *, .cmxp *::before, .cmxp *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }

@@ -234,7 +234,7 @@ export default function ChoosePath({ username = "Student", onSelectPath, enrollm
     const measure = () => {
       const w = stageRef.current?.clientWidth || 1280;
       setK(Math.max(0.42, Math.min(1, (w - 40) / 1180)));
-      setNarrow(w < 960);
+      setNarrow(w < 1180); // tablets and small laptops: cards in a row, details below
       setStageW(w);
     };
     measure();
@@ -316,11 +316,11 @@ export default function ChoosePath({ username = "Student", onSelectPath, enrollm
       const others = order.filter((x) => x !== current), j = others.indexOf(id);
       if (narrow) return { t: "translate(0px,-30px) scale(.6)", z: 5, hidden: true };
       const m = (others.length - 1) / 2;
-      return { t: `translate(${-400 + (j - m) * 96}px,322px) rotate(${(j - m) * 4}deg) scale(.4)`, z: 20 + j };
+      return { t: `translate(${-390 + (j - m) * 88}px,322px) rotate(${(j - m) * 4}deg) scale(.4)`, z: 20 + j };
     }
     // 6 cards: a little tighter, and nudged right so the teacher on the left stays visible
-    const s = Math.max(k, 0.55), ox = narrow ? 0 : 50 * k;
-    const gap = narrow ? Math.min(150, (stageW - 232 * s - 24) / (n - 1) / k) : 165; // phones: all 6 cards fit the screen
+    const s = Math.max(k, 0.55), ox = narrow ? 0 : 36 * k;
+    const gap = narrow ? Math.min(150, (stageW - 232 * s - 48) / (n - 1) / k) : 160; // phones: all 6 cards fit the screen
     if (hovered === id) return { t: `translate(${d * gap * k + ox}px,${(Math.abs(d) * 22 + 30) * k - 40}px) rotate(0deg) scale(${1.07 * s})`, z: 40 };
     return { t: `translate(${d * gap * k + ox}px,${(Math.abs(d) * 22 + 30) * k}px) rotate(${d * 6}deg) scale(${s})`, z: 10 + slot };
   };

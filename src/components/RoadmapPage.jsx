@@ -206,7 +206,7 @@ function RoadmapView({ data, onToggle, onEnrollTrack, burst }) {
       {track && (
         <div className="rm-banner rise">
           <span className="rm-banner-ic"><Sparkles size={20} /></span>
-          <p><b>Good news!</b> {track.label} has a full CodeMentorX course with 20 levels, quizzes, projects and a certificate.</p>
+          <p><b>Good news!</b> {track.label} has a full CodeMentor  course with 20 levels, quizzes, projects and a certificate.</p>
           <button type="button" className="rm-btn pri sm" onClick={() => onEnrollTrack && onEnrollTrack(builtInTrack)}>Open the {track.label} course →</button>
         </div>
       )}
@@ -468,7 +468,7 @@ export default function RoadmapPage({ onBack, onEnrollTrack }) {
       <div className="rm-bg" aria-hidden="true"><div className="rm-blob b1" /><div className="rm-blob b2" /><div className="rm-gridbg" /></div>
 
       <header className="rm-top">
-        <div className="rm-brand"><i>&gt;_</i>CodeMentor<span>-X</span></div>
+        <div className="rm-brand"><i>&gt;_</i>CodeMentor<span></span></div>
         <div className="rm-tr">
           {onBack && <button type="button" className="rm-btn ghost sm" onClick={onBack}><ArrowLeft size={16} /> Back</button>}
           <button type="button" className="rm-toggle" onClick={toggleTheme} aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}>

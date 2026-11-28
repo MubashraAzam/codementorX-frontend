@@ -251,6 +251,13 @@ function LevelPath({ names, doneSet, stars, current, initial, avatarUrl, onOpen 
   const donePath = smoothPath(pts.slice(0, reached + 1));
   const me = pts[reached];
 
+  // small screens: the path scrolls sideways, so start with the current level in view
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || !width || width >= 760) return;
+    el.scrollLeft = Math.max(0, me.x - width / 2);
+  }, [width, me.x]);
+
   return (
     <div className="dz-pathwrap" ref={wrapRef}>
       {width > 0 && (

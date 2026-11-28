@@ -129,7 +129,7 @@ const Sparkle = ({ style }) => (
 /** The original CodeMentor-X teacher + whiteboard drawing (unchanged). */
 function ClassroomScene() {
   return (
-    <svg className="main" viewBox="0 0 500 400" role="img" aria-label="Teacher mascot next to a whiteboard">
+    <svg className="main" viewBox="-20 20 540 380" role="img" aria-label="Teacher mascot next to a whiteboard">
       <ellipse cx="250" cy="380" rx="220" ry="18" fill="#000" opacity="0.06" />
       <g className="wb"><g transform="translate(88, 0)">
         <line x1="100" y1="200" x2="60" y2="350" stroke="#94a3b8" strokeWidth="8" strokeLinecap="round" />
@@ -276,8 +276,7 @@ export default function PinkLanding({ onOpenAuth }) {
   const [barPct, setBarPct] = useState(0);
   useEffect(() => {
     if (!roadOn) return;
-    setRowsShown(0); setBarPct(0);
-    const ts = [setTimeout(() => setBarPct(TRACK_PROGRESS[trackIdx]), 320)];
+    const ts = [setTimeout(() => { setRowsShown(0); setBarPct(0); }, 0), setTimeout(() => setBarPct(TRACK_PROGRESS[trackIdx]), 320)];
     for (let k = 0; k < 6; k++) ts.push(setTimeout(() => setRowsShown(k + 1), 340 + k * 110));
     ts.push(setTimeout(() => setTrackIdx((i) => (i + 1) % TRACK_NAMES.length), SLIDE_MS));
     return () => ts.forEach(clearTimeout);
@@ -335,7 +334,7 @@ export default function PinkLanding({ onOpenAuth }) {
         <nav className="nav">
           <button type="button" className="brand" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
             <span className="logo"><img src={codementorLogo} alt="CodeMentor-X logo" /></span>
-            <span style={{ color: "var(--text)" }}>CodeMentor<span>-X</span></span>
+            <span className="bt" style={{ color: "var(--text)" }}>CodeMentor<span></span></span>
           </button>
           <div className="links">
             <button type="button" onClick={() => scrollTo("features")}>Features</button>

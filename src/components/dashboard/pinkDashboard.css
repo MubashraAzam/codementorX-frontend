@@ -173,7 +173,7 @@
 .cmxd .dz-card:hover::after { opacity: .7; }
 .cmxd .dz-card h3 { font-size: 17px; font-weight: 800; letter-spacing: -.02em; display: flex; align-items: center; gap: 8px; }
 .cmxd .dz-kk { font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--soft); }
-.cmxd .dz-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cmxd .dz-row { display: flex; align-items: center; justify-content: space-between; gap: 6px 10px; flex-wrap: wrap; }
 .cmxd .dz-link { border: 0; background: none; color: var(--accent); font-weight: 800; font-size: 13.5px; padding: 0; }
 .cmxd .dz-swap { animation: dzSwap .6s cubic-bezier(.3, 1.4, .5, 1); }
 @keyframes dzSwap { 0% { opacity: .15; transform: translateY(10px) scale(.98); } 100% { opacity: 1; transform: none; } }

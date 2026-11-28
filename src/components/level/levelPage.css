@@ -571,6 +571,27 @@
   .cmxl .hr .pill{display:none}
   .cmxl h1{font-size:22px}
   .cmxl .exs{flex-direction:column}
+  /* phones + tablets: card titles, tools and the editor toolbar wrap instead of being cut off */
+  .cmxl .row{flex-wrap:wrap;row-gap:8px}
+  .lab-tools{flex-wrap:wrap}
+  .cmxl .lab-tools .kk{flex-basis:100%}
+  .cmxl .edbar{flex-wrap:wrap}
+  .cmxl .edbar .status,.cmxl .edbar .sp{flex-basis:100%;margin-left:0}
+  .cmxl .task{flex-wrap:wrap}
+}
+@media (max-width:640px){
+  /* the header is tall on phones, so it scrolls away instead of covering the lesson */
+  .cmxl .head{position:relative;top:0;gap:10px;padding:10px 12px;border-radius:20px}
+  .cmxl .rhead{top:0}
+  .cmxl .back{height:38px;padding:0 12px 0 10px;font-size:13px}
+  .cmxl .card{padding:16px;border-radius:20px}
+  .cmxl .stepper{gap:6px}
+  .cmxl .step{font-size:12.5px}
+}
+/* phones held sideways (short screens): the header scrolls away too */
+@media (max-height:520px){
+  .cmxl .head{position:relative;top:0}
+  .cmxl .rhead{top:0}
 }
 @media (prefers-reduced-motion:reduce){
   .cmxl *,.cmxl *::before,.cmxl *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
