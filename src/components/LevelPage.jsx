@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { LANGS, topicsOf } from "./level/levelData";
 import { askHint, askPair, askTutor, loadExample, loadFullLesson, loadOverview, loadPractice, toHistory } from "./level/levelAI";
-import { plainText } from "./level/markup";
+import { overviewFromLesson, plainText } from "./level/markup";
 import { useChat } from "./level/useTutor";
 import { Icon, Star } from "./level/ui";
 import LessonTab from "./level/LessonTab";
@@ -168,7 +168,12 @@ function LevelInner({
   const tutor = useChat(`Hi ${username}! Today is **${level.title}**. Ask me anything while you read. I can also explain in Urdu.`);
   const pair = useChat(`I'm your pair-programming partner. I can see your code. Write something, then press a button below or ask me a question.`);
 
-  const labCodeValue = labCode ?? (overview.value?.example?.code || STARTER[lang] || "");
+  // If the lesson-cards route is missing/busy, build the cards from the full lesson instead.
+  const cards = useMemo(
+    () => overview.value || (overview.error && lesson.value ? overviewFromLesson(lesson.value, level) : null),
+    [overview.value, overview.error, lesson.value, level],
+  );
+  const labCodeValue = labCode ?? (cards?.example?.code || STARTER[lang] || "");
   function setLabCode(v) {
     setLabCodeState(v);
     writeRaw(labKey, v);
@@ -318,7 +323,7 @@ function LevelInner({
 
   const baseXP = doneLevels.length * 50 + Object.values(progress?.stars || {}).reduce((a, b) => a + (Number(b) || 0), 0) * 10;
   const tabIndex = TABS.findIndex((t) => t.id === tab);
-  const speakText = tab === "lesson" ? (lesson.value ? plainText(lesson.value) : plainText(overview.value?.bigIdea || "")) : "";
+  const speakText = tab === "lesson" ? (lesson.value ? plainText(lesson.value) : plainText(cards?.bigIdea || "")) : "";
   const placeholder = uiLang === "ur" ? "یہاں سوال لکھیں…" : tab === "code" ? "Ask your partner about your code…" : "Ask the tutor anything…";
 
   return (
@@ -386,8 +391,8 @@ function LevelInner({
                       ctx={ctx}
                       langName={L.name}
                       langFence={L.fence}
-                      overview={overview.value}
-                      overviewError={overview.error}
+                      overview={cards}
+                      overviewError={lesson.error ? overview.error : ""}
                       lesson={lesson.value}
                       lessonError={lesson.error}
                       rootRef={rootRef}
@@ -409,7 +414,7 @@ function LevelInner({
                       starter={STARTER[lang] || ""}
                       task={labTask}
                       onClearTask={() => setLabTask(null)}
-                      example={overview.value?.example}
+                      example={cards?.example}
                       onAskPartner={askPartner}
                       onNext={() => goNext("code", "practice")}
                     />

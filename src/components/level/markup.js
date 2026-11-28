@@ -158,6 +158,37 @@ export function splitSections(md) {
   return out.map((s) => ({ title: s.title, sub: s.sub, body: s.body.join("\n").trim() })).filter((s) => s.body || s.title);
 }
 
+// Backup lesson cards built from the full lesson text, used when the server's
+// /api/mentor/overview is not available (old backend still deployed, or the AI
+// is busy). No AI call is needed.
+export function overviewFromLesson(md, level) {
+  const sections = splitSections(md);
+  if (!sections.length) return null;
+  const find = (re) => sections.find((s) => re.test(s.title));
+  const firstPara = (body) => (body || "").split(/\n\s*\n/).map((p) => p.trim()).find((p) => p && !/^(```|[-*•]|\d+[.)]|#)/.test(p)) || "";
+  const bullets = (body) => (body || "").split("\n").map((l) => l.trim()).filter((l) => /^([-*•]|\d+[.)])\s+/.test(l)).map((l) => l.replace(/^([-*•]|\d+[.)])\s+/, ""));
+  const intro = find(/intro|overview|why/i) || sections[0];
+  const mistakes = find(/mistake|pitfall|error/i);
+  const summary = find(/summary|recap|key takeaway/i);
+  const concepts = sections.filter((s) => s !== intro && s !== mistakes && s !== summary && !/^key concepts$/i.test(s.title));
+  const codeOf = (body) => ((body || "").match(/```[\w+#-]*\n([\s\S]*?)```/) || [])[1] || "";
+  const topics = (level?.sub || "").split("·").map((t) => t.trim()).filter(Boolean);
+  const m = bullets(mistakes?.body)[0] || "";
+  return {
+    bigIdea: firstPara(intro.body).split("\n```")[0].slice(0, 500) || `In this level you learn **${level?.title || "this topic"}**.`,
+    flow: {
+      type: "steps",
+      title: "What this lesson covers",
+      steps: (concepts.length ? concepts : sections).slice(0, 5).map((s) => ({ label: s.title, detail: firstPara(s.body).split("\n")[0].replace(/[*`]/g, "").slice(0, 60) })),
+    },
+    cards: topics.slice(0, 6).map((t) => ({ front: t.split(" ")[0], label: t, back: `See "${t}" in the full lesson` })),
+    mistake: { title: m ? m.replace(/[*`]/g, "").split(/[.:]/)[0].slice(0, 60) : "Read errors slowly", text: m || "Most beginner errors are a missing symbol or wrong indentation. Read the error's line number first.", wrong: "", right: "" },
+    recap: (bullets(summary?.body).length ? bullets(summary.body) : topics.map((t) => `I can use ${t}`)).slice(0, 4),
+    example: { file: "main", code: concepts.map((s) => codeOf(s.body)).find(Boolean) || codeOf(md), inputs: [] },
+    fromLesson: true,
+  };
+}
+
 export function plainText(md) {
   return (md || "").replace(/```[\s\S]*?```/g, " ").replace(/[#*`>]/g, "").replace(/\s+/g, " ").trim();
 }
